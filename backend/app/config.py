@@ -40,17 +40,22 @@ MODES = {   # cell cost c = beta + alpha*T + gamma*(1-S);  edge cost = distance_
     "balanced":       {"letter": "C", "label": "BALANCED", "alpha": 3.0, "beta": 1.0, "gamma": 1.5,
                        "intent": "Trade modeled terrain cost against science proximity."},
 }
+# ---- GRIDS (v2) -------------------------------------------------------------
+# Routes are searched on the 1/512 deg routing grid by default (bicubic interpolation of the native grid).
+# "native" keeps the original 1/128 deg grid + pure-Python A* for comparison. Finer grids add NO information.
+ROUTING_GRID_DEFAULT = "routing"
+GRID_CHOICES = ("routing", "native")
 SEGMENT_TARGET_M = 1500.0      # route is split into ~1.5 km segments for evidence
 STOP_RADIUS_M = 1200.0         # a target within this distance of the route counts as a candidate stop
 
 # The 8-stage pipeline shown in the prescreening film (Scene 12), with honest per-stage status for THIS build.
 PIPELINE = [
-    ("NASA DATA", "PDS archives", "IMPLEMENTED", "PDS3 reader + official MOLA MEGDR fetcher (scripts/fetch_mola.py).", "HiRISE, CRISM products"),
-    ("DATA HARMONIZATION", "common grid · CRS", "IMPLEMENTED", "Label/file validation, pixel-exact clip (no resampling), grid-alignment check.", "Reprojection/resampling for multi-resolution layers"),
+    ("NASA DATA", "PDS archives", "IMPLEMENTED", "PDS3 reader + MOLA MEGDR fetcher (scripts/fetch_mola.py, needs internet). This offline build runs on the labelled synthetic fixture.", "HiRISE, CRISM, CTX products"),
+    ("DATA HARMONIZATION", "common grid · CRS", "IMPLEMENTED", "Label/file validation, pixel-exact clip, grid-alignment check; documented cubic resampling to 1/512° routing and 1/1024° analysis grids.", "Reprojection of CTX/HiRISE/CRISM GeoTIFFs"),
     ("FEATURE EXTRACTION", "slope · roughness", "IMPLEMENTED", "Slope (spherical spacing), 3x3 local relief, MOLA coverage flags.", "HiRISE-scale roughness"),
     ("SPATIAL ANALYSIS", "overlay · buffers", "IMPLEMENTED", "Science-proximity field, derived rim target, cell inspection.", "CRISM-derived science areas"),
-    ("ROUTE GRAPH", "nodes · edges · costs", "IMPLEMENTED", "8-connected graph on the native grid, spherical step lengths.", "Multi-resolution graph"),
-    ("MULTI-OBJECTIVE PLANNING", "priority-weighted paths", "IMPLEMENTED", "Weighted-sum objective, 3 priority modes, A* (optimal, deterministic).", "Pareto sets, user-set weights"),
+    ("ROUTE GRAPH", "nodes · edges · costs", "IMPLEMENTED", "8-connected graph on the 1/512° routing grid (native 1/128° kept for comparison), spherical step lengths.", "Graph on real CTX/HiRISE terrain"),
+    ("MULTI-OBJECTIVE PLANNING", "priority-weighted paths", "IMPLEMENTED", "Weighted-sum objective, 3 priority modes; exact least-cost search (Dijkstra on 1/512°, A* on 1/128°).", "Pareto sets, user-set weights"),
     ("EXPLAINABLE EVIDENCE", "provenance per segment", "IMPLEMENTED", "WHY panel: values, cost breakdown, method, provenance, limitation.", "Imagery evidence per segment"),
     ("CREW BRIEF", "one page for the crew", "IMPLEMENTED", "Brief generated from computed route + provenance; printable.", "Export to mission formats"),
 ]

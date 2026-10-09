@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One command to run MARSCOPE:  python run.py
 Builds the region if needed (real MOLA if present in data/raw, else the labelled synthetic fixture),
-then serves API + UI at http://localhost:8000 . No internet needed after data is fetched."""
+then serves API + UI at http://localhost:8000 . No internet needed (this offline build never downloads anything)."""
 import os, subprocess, sys, webbrowser, threading
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent
@@ -19,4 +19,10 @@ if not (ROOT / "frontend/dist/index.html").exists():
     print("frontend/dist missing: run `npm install && npm run build` in frontend/ (Node 18+).")
 threading.Timer(2.0, lambda: webbrowser.open(f"http://localhost:{port}/")).start()
 os.chdir(ROOT / "backend")
-subprocess.run([py, "-m", "uvicorn", "app.main:app", "--port", str(port)])
+try:  # FastAPI is the primary server; the Starlette-only fallback serves the identical API when FastAPI is missing.
+    import fastapi  # noqa: F401
+    target = "app.main:app"
+except ImportError:
+    target = "app.lite:app"
+    print("FastAPI not installed - using the Starlette fallback server (same API).")
+subprocess.run([py, "-m", "uvicorn", target, "--port", str(port)])

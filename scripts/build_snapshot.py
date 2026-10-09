@@ -6,11 +6,11 @@ from pathlib import Path
 warnings.filterwarnings("ignore")
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from fastapi.testclient import TestClient  # noqa
-from app.main import app  # noqa
+from app.api.asgi_client import Client, available_apps  # noqa  (in-process; no httpx, no sockets, no network)
 from app.config import PROCESSED, REGION  # noqa
 
-c = TestClient(app)
+name, app = available_apps()[0]
+c = Client(app)
 out = ROOT / "frontend" / "public" / "demo"; (out / "layers").mkdir(parents=True, exist_ok=True)
 get = {p: c.get(p).json() for p in ["/api/metadata", "/api/layers", "/api/science-targets", "/api/regions", "/api/sources"]}
 routes = c.post("/api/routes/compare", json={}).json()["routes"]

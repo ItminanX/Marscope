@@ -130,11 +130,15 @@ def test_nan_cells_are_impassable():
 
 
 # 9 comparison + 10 API
-@pytest.fixture(scope="module")
-def client():
-    from fastapi.testclient import TestClient
-    from app.main import app
-    return TestClient(app)
+# v2: run the API tests against every server implementation installed here (FastAPI and/or the Starlette
+# fallback) through an in-process ASGI client, so no httpx/network is needed.
+from app.api.asgi_client import Client, available_apps  # noqa: E402
+_APPS = dict(available_apps())
+
+
+@pytest.fixture(scope="module", params=list(_APPS))
+def client(request):
+    return Client(_APPS[request.param])
 
 
 def test_compare_returns_three_explainable_routes(client):

@@ -1,6 +1,6 @@
 {
  "data_mode": "SYNTHETIC_FIXTURE",
- "built": "2026-10-01T03:44:09",
+ "built": "2026-10-10T04:02:22",
  "region": {
   "id": "jezero",
   "name": "Jezero Crater",
@@ -62,7 +62,7 @@
      "lon_max": 78.5
     },
     "resolution": "1/128\u00b0 per pixel \u2248 463 m (north-south)",
-    "retrieval_date": "2026-10-01",
+    "retrieval_date": "2026-10-10",
     "processing_steps": [
      {
       "step": "read",
@@ -99,6 +99,10 @@
      {
       "step": "derive",
       "note": "slope = atan(|grad z|) by central differences with dx = dy*cos(lat); relief = 3x3 max-min; hillshade az 315\u00b0, alt 45\u00b0, 3x vertical exaggeration (display only)"
+     },
+     {
+      "step": "resample",
+      "note": "routing grid 1/512\u00b0 and analysis grid 1/1024\u00b0: cubic-spline interpolation (scipy.ndimage.map_coordinates, order=3, prefilter=True; edges padded 8 cells by odd reflection) of the native 1/128\u00b0 grid; shot counts by nearest neighbour. Built at start-up from grid.npz; finer spacing does not add terrain information."
      }
     ],
     "credit": "MARSCOPE test fixture (not NASA)",
@@ -114,7 +118,7 @@
   },
   {
    "id": "slope",
-   "name": "Slope",
+   "name": "Slope (1/512\u00b0 routing grid)",
    "png": "slope.png",
    "legend": {
     "type": "ramp",
@@ -129,30 +133,31 @@
    },
    "provenance": {
     "id": "slope",
-    "source_name": "Slope from MOLA",
-    "mission": "Derived from MOLA",
+    "source_name": "Slope from the synthetic fixture",
+    "mission": "Derived from the synthetic fixture",
     "instrument": "MARSCOPE pipeline",
-    "product": "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat)",
+    "product": "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat), on the 1/512\u00b0 routing grid",
     "source_url": "derived \u2014 see docs/SCIENTIFIC_METHOD.md",
     "archive": "computed locally",
-    "spatial_reference": "same grid as source (no resampling)",
+    "spatial_reference": "1/512\u00b0 lat/lon grid, same bounds as the native grid",
     "coverage": "region of interest",
-    "resolution": "same as source",
-    "retrieval_date": "2026-10-01",
+    "resolution": "1/512\u00b0 grid spacing (~116 m); source 1/128\u00b0 (~463 m)",
+    "retrieval_date": "2026-10-10",
     "processing_steps": [
-     "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat)"
+     "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat), on the 1/512\u00b0 routing grid"
     ],
-    "credit": "inputs: MOLA topography",
+    "credit": "inputs: elevation on the 1/512\u00b0 routing grid (cubic interpolation of the 1/128\u00b0 source grid)",
     "notes": "unit: degrees",
     "limitations": [
-     "Slope over ~926 m baselines; short steep features are smoothed out"
+     "Source information is ~463 m; the 116 m grid spacing is interpolation, not new detail",
+     "Slope values depend on grid spacing (see docs/SCIENTIFIC_METHOD.md)"
     ],
     "status": "SYNTHETIC"
    }
   },
   {
    "id": "cost",
-   "name": "Modeled terrain cost T",
+   "name": "Modeled terrain cost T (routing grid)",
    "png": "cost.png",
    "legend": {
     "type": "ramp",
@@ -168,19 +173,19 @@
    "provenance": {
     "id": "cost",
     "source_name": "Modeled terrain cost",
-    "mission": "Derived from MOLA",
+    "mission": "Derived from the synthetic fixture",
     "instrument": "MARSCOPE pipeline",
     "product": "T = 0.75*min(1,slope/15.0\u00b0)^2 + 0.25*min(1,relief/150.0 m)",
     "source_url": "derived \u2014 see docs/SCIENTIFIC_METHOD.md",
     "archive": "computed locally",
-    "spatial_reference": "same grid as source (no resampling)",
+    "spatial_reference": "1/512\u00b0 lat/lon grid, same bounds as the native grid",
     "coverage": "region of interest",
-    "resolution": "same as source",
-    "retrieval_date": "2026-10-01",
+    "resolution": "1/512\u00b0 routing grid",
+    "retrieval_date": "2026-10-10",
     "processing_steps": [
      "T = 0.75*min(1,slope/15.0\u00b0)^2 + 0.25*min(1,relief/150.0 m)"
     ],
-    "credit": "inputs: slope, 3x3 local relief",
+    "credit": "inputs: slope, local relief (13x13 cells (keeps ~1.4 km footprint))",
     "notes": "unit: 0\u20131",
     "limitations": [
      "Weights and reference values are ASSUMPTIONS",
@@ -206,7 +211,7 @@
    "provenance": {
     "id": "science",
     "source_name": "Science proximity",
-    "mission": "Derived from MOLA",
+    "mission": "Derived from the synthetic fixture",
     "instrument": "MARSCOPE pipeline",
     "product": "S = max_k exp(-d_k^2 / (2*1500 m^2)) over candidate science targets",
     "source_url": "derived \u2014 see docs/SCIENTIFIC_METHOD.md",
@@ -214,7 +219,7 @@
     "spatial_reference": "same grid as source (no resampling)",
     "coverage": "region of interest",
     "resolution": "same as source",
-    "retrieval_date": "2026-10-01",
+    "retrieval_date": "2026-10-10",
     "processing_steps": [
      "S = max_k exp(-d_k^2 / (2*1500 m^2)) over candidate science targets"
     ],
@@ -254,7 +259,7 @@
      "lon_max": 78.5
     },
     "resolution": "1/128\u00b0 per pixel \u2248 463 m (north-south)",
-    "retrieval_date": "2026-10-01",
+    "retrieval_date": "2026-10-10",
     "processing_steps": [
      {
       "step": "clip",
@@ -352,30 +357,130 @@
  ],
  "unavailable": [
   {
+   "id": "ctx",
+   "name": "CTX DEM 20 m + CTX orthomosaic 5 m (USGS / NASA JPL, Mars 2020)",
+   "status": "DATA_UNAVAILABLE",
+   "plan": "Files not present offline. Future: place the GeoTIFFs in data/raw/ctx/ (see docs/DATA.md). Nothing in this build is CTX data."
+  },
+  {
    "id": "hirise",
    "name": "HiRISE orthoimage / DTM (MRO)",
    "status": "DATA_UNAVAILABLE",
-   "plan": "Hackathon: add a HiRISE orthoimage + DTM along the traverse for metre-scale inspection."
+   "plan": "Planned for the hackathon event: HiRISE orthoimage + DTM along one traverse for metre-scale inspection."
   },
   {
    "id": "crism",
-   "name": "CRISM spectral parameters (MRO)",
+   "name": "CRISM-derived mineral map (Saranathan & Parente 2021, Zenodo 5575824)",
    "status": "DATA_UNAVAILABLE",
-   "plan": "Hackathon: derive science candidates from CRISM summary-parameter products instead of literature points."
+   "plan": "jezeroFinal.tif + readme not present offline. No mineral classes are shown or invented. Science field uses candidate targets only."
   },
   {
    "id": "themis",
    "name": "THEMIS thermal inertia (Mars Odyssey)",
    "status": "CONCEPTUAL",
-   "plan": "Future: surface-material context (rocky vs. fine-grained) along the route."
+   "plan": "Planned for the hackathon event: surface-material context (rocky vs. fine-grained) along the route."
+  },
+  {
+   "id": "sharad",
+   "name": "SHARAD radargrams (MRO)",
+   "status": "CONCEPTUAL",
+   "plan": "Planned for the hackathon event: shallow-subsurface context along ground tracks."
   },
   {
    "id": "weather",
-   "name": "Live environmental feed",
+   "name": "MEDA conditions (Mars 2020) / live environment",
    "status": "CONCEPTUAL",
-   "plan": "Future capability. No live or real-time Mars conditions are used anywhere in MARSCOPE."
+   "plan": "No MEDA files provided, so no temperatures, pressures or winds are shown. No live or real-time Mars conditions are used anywhere in MARSCOPE."
   }
  ],
+ "disclosure": "Pre-event concept prototype, not work produced during the official hackathon (Nov 14-15, 2026).",
+ "grid_records": [
+  {
+   "id": "grid_routing",
+   "source_name": "Routing grid 1/512\u00b0 (interpolated)",
+   "mission": "Derived from the synthetic fixture",
+   "instrument": "MARSCOPE pipeline",
+   "product": "elevation resampled to 1/512\u00b0 for route search",
+   "source_url": "derived \u2014 backend/app/geospatial/levels.py",
+   "archive": "computed locally at start-up (not shipped)",
+   "spatial_reference": "Simple cylindrical lat/lon grid, same outer bounds as the native clipped grid",
+   "coverage": "region of interest",
+   "resolution": "1/512\u00b0 \u2248 116 m N-S \u00d7 110 m E-W",
+   "retrieval_date": "2026-10-10",
+   "processing_steps": [
+    "cubic-spline interpolation (scipy.ndimage.map_coordinates, order=3, prefilter=True; edges padded 8 cells by odd reflection) of the native 1/128\u00b0 grid; shot counts by nearest neighbour",
+    "relief window 13x13 cells (keeps ~1.4 km footprint)"
+   ],
+   "credit": "input: native 1/128\u00b0 grid",
+   "notes": "finer spacing does NOT add terrain information; the effective resolution is still the native grid",
+   "limitations": [
+    "Interpolation does not add real terrain detail; effective resolution stays ~463 m",
+    "Cubic splines can overshoot near sharp breaks, so fine-grid maximum slopes can exceed native ones",
+    "Slope limit (exclusion) is an ASSUMPTION applied unchanged at every grid spacing"
+   ],
+   "status": "SYNTHETIC"
+  },
+  {
+   "id": "grid_analysis",
+   "source_name": "Analysis grid 1/1024\u00b0 (interpolated)",
+   "mission": "Derived from the synthetic fixture",
+   "instrument": "MARSCOPE pipeline",
+   "product": "elevation resampled to 1/1024\u00b0 for evidence sampling along routes",
+   "source_url": "derived \u2014 backend/app/geospatial/levels.py",
+   "archive": "computed locally at start-up (not shipped)",
+   "spatial_reference": "Simple cylindrical lat/lon grid, same outer bounds as the native clipped grid",
+   "coverage": "region of interest",
+   "resolution": "1/1024\u00b0 \u2248 58 m N-S \u00d7 55 m E-W",
+   "retrieval_date": "2026-10-10",
+   "processing_steps": [
+    "cubic-spline interpolation (scipy.ndimage.map_coordinates, order=3, prefilter=True; edges padded 8 cells by odd reflection) of the native 1/128\u00b0 grid; shot counts by nearest neighbour",
+    "relief window 25x25 cells (keeps ~1.4 km footprint)"
+   ],
+   "credit": "input: native 1/128\u00b0 grid",
+   "notes": "finer spacing does NOT add terrain information; the effective resolution is still the native grid",
+   "limitations": [
+    "Interpolation does not add real terrain detail; effective resolution stays ~463 m",
+    "Cubic splines can overshoot near sharp breaks, so fine-grid maximum slopes can exceed native ones",
+    "Slope limit (exclusion) is an ASSUMPTION applied unchanged at every grid spacing"
+   ],
+   "status": "SYNTHETIC"
+  }
+ ],
+ "slope_by_level": {
+  "native": {
+   "mean_deg": 3.08,
+   "p50_deg": 1.5,
+   "p95_deg": 10.63,
+   "p99_deg": 12.26,
+   "max_deg": 20.45,
+   "cells": 21896,
+   "cells_above_limit": 0,
+   "cell_deg": "1/128\u00b0",
+   "cell_ns_m": 463.1
+  },
+  "routing": {
+   "mean_deg": 3.53,
+   "p50_deg": 2.15,
+   "p95_deg": 10.97,
+   "p99_deg": 13.15,
+   "max_deg": 25.88,
+   "cells": 350336,
+   "cells_above_limit": 6,
+   "cell_deg": "1/512\u00b0",
+   "cell_ns_m": 115.8
+  },
+  "analysis": {
+   "mean_deg": 3.57,
+   "p50_deg": 2.21,
+   "p95_deg": 11.0,
+   "p99_deg": 13.25,
+   "max_deg": 26.27,
+   "cells": 1401344,
+   "cells_above_limit": 29,
+   "cell_deg": "1/1024\u00b0",
+   "cell_ns_m": 57.9
+  }
+ },
  "assumptions": {
   "terrain": {
    "slope_ref_deg": 15.0,
@@ -418,6 +523,7 @@
   "slope_max_deg": 20.45,
   "slope_p95_deg": 10.63,
   "interpolated_fraction": 0.236,
-  "excluded_cells": 0
+  "excluded_cells": 0,
+  "excluded_cells_routing": 6
  }
 }

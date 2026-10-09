@@ -14,7 +14,10 @@ sys.path.insert(0, str(ROOT / "backend"))
 from app.config import RAW, FIXTURES, PROCESSED, TARGETS, REGION, MOLA_TOPO_TILE, MOLA_COUNT_TILE, TERRAIN, MODES, SCIENCE_SIGMA_M  # noqa
 from app.ingestion.pds3 import read_megdr, clip, DataError  # noqa
 from app.geospatial.terrain import slope_deg, local_relief_m, hillshade, haversine_m  # noqa
-from app.provenance.registry import mola_record, derived_record, UNAVAILABLE  # noqa
+from app.provenance.registry import mola_record, derived_record, grid_record, UNAVAILABLE  # noqa
+from app.geospatial.levels import LEVELS, build_level, slope_stats, level_description  # noqa
+
+DISCLOSURE = "Pre-event concept prototype, not work produced during the official hackathon (Nov 14-15, 2026)."
 
 
 def ramp(v, stops):
@@ -64,6 +67,18 @@ def main():
     hs = hillshade(z, lat, rc.ppd, rc.radius_m)
     steps.append({"step": "derive", "note": "slope = atan(|grad z|) by central differences with dx = dy*cos(lat); relief = 3x3 max-min; hillshade az 315°, alt 45°, 3x vertical exaggeration (display only)"})
 
+    # ---- v2: interpolated routing (1/512°) and analysis (1/1024°) grids. They add NO terrain information. ----
+    lv = {name: build_level(z, counts, rc.lat_max, rc.lon_west, rc.ppd, rc.radius_m, f, with_relief=(name != "analysis"))
+          for name, f in LEVELS.items() if f > 1}
+    lat_mid = float(lat.mean())
+    level_info = {name: level_description(name, f, rc.ppd, rc.radius_m, lat_mid) for name, f in LEVELS.items()}
+    slope_by_level = {"native": slope_stats(slope, TERRAIN["max_slope_deg"])}
+    slope_by_level.update({name: slope_stats(v["slope"], TERRAIN["max_slope_deg"]) for name, v in lv.items()})
+    for name in slope_by_level:
+        slope_by_level[name].update({"cell_deg": level_info[name]["cell_deg"], "cell_ns_m": level_info[name]["cell_ns_m"]})
+    steps.append({"step": "resample", "note": "routing grid 1/512° and analysis grid 1/1024°: " + level_info["routing"]["method"]
+                  + ". Built at start-up from grid.npz; finer spacing does not add terrain information."})
+
     # ---- targets: load, then derive the west rim crest from the data ----
     tdoc = json.loads((TARGETS / f"{REGION['id']}_targets.json").read_text())
     targets = tdoc["targets"]
@@ -99,7 +114,8 @@ def main():
         if t.get("science"):
             S = np.maximum(S, np.exp(-haversine_m(LA, LO, t["lat"], t["lon"], rc.radius_m) ** 2 / (2 * SCIENCE_SIGMA_M ** 2)))
     tc = TERRAIN
-    T = tc["w_slope"] * np.minimum(1, slope / tc["slope_ref_deg"]) ** 2 + tc["w_relief"] * np.minimum(1, relief / tc["relief_ref_m"])
+    rg = lv["routing"]
+    T = tc["w_slope"] * np.minimum(1, rg["slope"] / tc["slope_ref_deg"]) ** 2 + tc["w_relief"] * np.minimum(1, rg["relief"] / tc["relief_ref_m"])
 
     out = PROCESSED / REGION["id"]; (out / "layers").mkdir(parents=True, exist_ok=True)
     zf = np.where(np.isfinite(z), z, np.nanmean(z))
@@ -109,8 +125,8 @@ def main():
     shade = (0.35 + 0.85 * hs)[..., None]
     base[..., :3] = np.clip(base[..., :3] * shade, 0, 255)
     save(base.astype(np.uint8), out / "layers" / "terrain.png")
-    smax = max(20.0, float(np.nanpercentile(slope, 99.5)))
-    save(ramp(slope / smax, [(0, (224, 168, 74, 0)), (0.15, (224, 168, 74, 40)), (0.5, (224, 168, 74, 170)), (1, (200, 70, 40, 235))]), out / "layers" / "slope.png")
+    smax = max(20.0, float(np.nanpercentile(rg["slope"], 99.5)))
+    save(ramp(rg["slope"] / smax, [(0, (224, 168, 74, 0)), (0.15, (224, 168, 74, 40)), (0.5, (224, 168, 74, 170)), (1, (200, 70, 40, 235))]), out / "layers" / "slope.png")
     save(ramp(T, [(0, (224, 168, 74, 0)), (0.2, (224, 168, 74, 60)), (0.6, (210, 110, 50, 180)), (1, (180, 50, 35, 235))]), out / "layers" / "cost.png")
     save(ramp(S, [(0, (116, 214, 210, 0)), (0.3, (116, 214, 210, 50)), (1, (150, 235, 230, 190))]), out / "layers" / "science.png")
     if counts is not None:
@@ -123,14 +139,21 @@ def main():
         {"id": "terrain", "name": "Terrain (MOLA elevation + hillshade)", "png": "terrain.png", "default": True, "smooth": True,
          "legend": {"type": "ramp", "min": round(zmin), "max": round(zmax), "unit": "m (rel. areoid)", "colors": ["#34201a", "#8e482a", "#c88c60", "#ecd6b4"]},
          "provenance": mola},
-        {"id": "slope", "name": "Slope", "png": "slope.png", "legend": {"type": "ramp", "min": 0, "max": round(smax, 1), "unit": "degrees",
+        {"id": "slope", "name": "Slope (1/512° routing grid)", "png": "slope.png", "legend": {"type": "ramp", "min": 0, "max": round(smax, 1), "unit": "degrees",
          "colors": ["#e0a84a00", "#e0a84aaa", "#c84628"]},
-         "provenance": derived_record("slope", "Slope from MOLA", "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat)",
-                                      ["MOLA topography"], "degrees", ["Slope over ~926 m baselines; short steep features are smoothed out"], synthetic)},
-        {"id": "cost", "name": "Modeled terrain cost T", "png": "cost.png", "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "dimensionless",
+         "provenance": derived_record("slope", "Slope " + ("from the synthetic fixture" if synthetic else "from MOLA"),
+                                      "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat), on the 1/512° routing grid",
+                                      ["elevation on the 1/512° routing grid (cubic interpolation of the 1/128° source grid)"], "degrees",
+                                      ["Source information is ~463 m; the 116 m grid spacing is interpolation, not new detail",
+                                       "Slope values depend on grid spacing (see docs/SCIENTIFIC_METHOD.md)"], synthetic,
+                                      resolution=f"{level_info['routing']['cell_deg']} grid spacing (~{level_info['routing']['cell_ns_m']:.0f} m); source 1/128° (~463 m)",
+                                      spatial_reference="1/512° lat/lon grid, same bounds as the native grid")},
+        {"id": "cost", "name": "Modeled terrain cost T (routing grid)", "png": "cost.png", "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "dimensionless",
          "colors": ["#e0a84a00", "#d26e32b4", "#b43223"]},
          "provenance": derived_record("cost", "Modeled terrain cost", f"T = {tc['w_slope']}*min(1,slope/{tc['slope_ref_deg']}°)^2 + {tc['w_relief']}*min(1,relief/{tc['relief_ref_m']} m)",
-                                      ["slope", "3x3 local relief"], "0–1", ["Weights and reference values are ASSUMPTIONS", "Not a safety or hazard score"], synthetic)},
+                                      ["slope", f"local relief ({level_info['routing']['relief_window']})"], "0–1",
+                                      ["Weights and reference values are ASSUMPTIONS", "Not a safety or hazard score"], synthetic,
+                                      resolution=f"{level_info['routing']['cell_deg']} routing grid", spatial_reference="1/512° lat/lon grid, same bounds as the native grid")},
         {"id": "science", "name": "Science proximity S", "png": "science.png", "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "dimensionless",
          "colors": ["#74d6d200", "#96ebe6be"]},
          "provenance": derived_record("science", "Science proximity", f"S = max_k exp(-d_k^2 / (2*{SCIENCE_SIGMA_M:.0f} m^2)) over candidate science targets",
@@ -144,18 +167,23 @@ def main():
         "data_mode": "SYNTHETIC_FIXTURE" if synthetic else "NASA_PDS",
         "built": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "region": {**REGION, "bounds": b, "shape": list(z.shape), "ppd": rc.ppd, "radius_m": rc.radius_m},
-        "layers": layers, "targets": targets, "unavailable": UNAVAILABLE,
+        "layers": layers, "targets": targets, "unavailable": UNAVAILABLE, "disclosure": DISCLOSURE,
+        "grid_records": [grid_record(level_info[k], synthetic) for k in ("routing", "analysis")],
+        "slope_by_level": slope_by_level,
         "assumptions": {"terrain": TERRAIN, "modes": MODES, "science_sigma_m": SCIENCE_SIGMA_M},
         "stats": {"elev_min_m": round(float(np.nanmin(z)), 1), "elev_max_m": round(float(np.nanmax(z)), 1),
                   "slope_max_deg": round(float(np.nanmax(slope)), 2), "slope_p95_deg": round(float(np.nanpercentile(slope, 95)), 2),
                   "interpolated_fraction": None if counts is None else round(float((counts == 0).mean()), 3),
-                  "excluded_cells": int((slope > TERRAIN["max_slope_deg"]).sum())},
+                  "excluded_cells": int((slope > TERRAIN["max_slope_deg"]).sum()),
+                  "excluded_cells_routing": slope_by_level["routing"]["cells_above_limit"]},
     }
     np.savez_compressed(out / "grid.npz", z=z, slope=slope, relief=relief, counts=(counts if counts is not None else np.full(z.shape, -1)),
                         lat_max=rc.lat_max, lon_west=rc.lon_west, ppd=rc.ppd, radius_m=rc.radius_m)
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     print(f"wrote {out}: grid {z.shape}, elev {manifest['stats']['elev_min_m']}..{manifest['stats']['elev_max_m']} m, "
           f"slope max {manifest['stats']['slope_max_deg']}°, rim at {rim['lat']},{rim['lon']}")
+    for k, v in slope_by_level.items():
+        print(f"  slope {k:8s} {v['cell_deg']:>8s}: mean {v['mean_deg']}°  p95 {v['p95_deg']}°  p99 {v['p99_deg']}°  max {v['max_deg']}°  >{TERRAIN['max_slope_deg']}°: {v['cells_above_limit']} cells")
 
 
 if __name__ == "__main__":

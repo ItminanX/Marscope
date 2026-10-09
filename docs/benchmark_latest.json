@@ -1,0 +1,89 @@
+{
+ "machine": "Linux x86_64 \u00b7 Python 3.13.16",
+ "data_mode": "SYNTHETIC_FIXTURE",
+ "store_init_s": 0.48,
+ "levels_build_ms": 429.7,
+ "runs": [
+  {
+   "grid": "native",
+   "cells": 21896,
+   "algorithm": "astar",
+   "mode": "traversability",
+   "seconds": 0.066,
+   "path_vertices": 31,
+   "cost": 37219.0
+  },
+  {
+   "grid": "native",
+   "cells": 21896,
+   "algorithm": "astar",
+   "mode": "science",
+   "seconds": 0.042,
+   "path_vertices": 30,
+   "cost": 61156.6
+  },
+  {
+   "grid": "native",
+   "cells": 21896,
+   "algorithm": "astar",
+   "mode": "balanced",
+   "seconds": 0.04,
+   "path_vertices": 30,
+   "cost": 41994.0
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "astar",
+   "mode": "traversability",
+   "seconds": 1.203,
+   "path_vertices": 117,
+   "cost": 41375.6
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "astar",
+   "mode": "science",
+   "seconds": 0.603,
+   "path_vertices": 117,
+   "cost": 61991.4
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "astar",
+   "mode": "balanced",
+   "seconds": 0.696,
+   "path_vertices": 117,
+   "cost": 44109.3
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "dijkstra",
+   "mode": "traversability",
+   "seconds": 0.166,
+   "path_vertices": 117,
+   "cost": 41375.6
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "dijkstra",
+   "mode": "science",
+   "seconds": 0.161,
+   "path_vertices": 117,
+   "cost": 61991.4
+  },
+  {
+   "grid": "routing",
+   "cells": 350336,
+   "algorithm": "dijkstra",
+   "mode": "balanced",
+   "seconds": 0.158,
+   "path_vertices": 117,
+   "cost": 44109.3
+  }
+ ]
+}

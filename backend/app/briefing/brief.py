@@ -36,25 +36,28 @@ def build_brief(store, route: dict, compare: list[dict] | None = None) -> dict:
         "classification": "PLANNING AID — NOT A SAFETY ASSESSMENT" + (" · SYNTHETIC TEST TERRAIN — NOT NASA DATA" if synth else ""),
         "mission": {"region": man["region"]["name"], "start": route["start"], "destination": route["dest"],
                     "objective": MODES[route["mode"]]["intent"], "mode": route["mode_label"], "route": f"ROUTE {letter}"},
-        "route": {"length_km": m["length_km"], "segments": m["segments"], "elev_gain_m": m["elev_gain_m"], "elev_loss_m": m["elev_loss_m"],
+        "route": {"length_km": m["length_km"], "segments": m["segments"], "grid": f"{route['grid']['cell_deg']} {route['grid']['level']} grid ({route['grid']['status']})", "elev_gain_m": m["elev_gain_m"], "elev_loss_m": m["elev_loss_m"],
                   "slope_mean_deg": m["slope_mean_deg"], "slope_max_deg": m["slope_max_deg"], "alternatives": alt, "strip": strip},
         "watch": watch,
         "discover": discover,
         "conditions": [
-            {"item": "Terrain epoch", "text": "MOLA observations 1999–2001; topography is treated as static.", "status": "VERIFIED" if not synth else "SYNTHETIC"},
+            {"item": "Terrain epoch", "text": ("Synthetic fixture: no observation epoch (generated data). Real MOLA observations date from 1999–2001."
+                                          if synth else "MOLA observations 1999–2001; topography is treated as static."), "status": "VERIFIED" if not synth else "SYNTHETIC"},
             {"item": "Measured vs interpolated ground", "text": (f"{round(100 * m['interpolated_fraction'])}% of route cells have no MOLA shot (interpolated)."
                                                                  if m.get("interpolated_fraction") is not None else "Shot counts not loaded."),
              "status": "DERIVED" if not synth else "SYNTHETIC"},
             {"item": "Thermal / surface-material context", "text": "THEMIS layer not integrated in this build.", "status": "CONCEPTUAL"},
-            {"item": "Weather, dust, lighting", "text": "Not modeled. No real-time conditions are used anywhere.", "status": "DATA_UNAVAILABLE"},
+            {"item": "Weather, dust, lighting", "text": "No MEDA files were provided, so no measured temperature, pressure or wind is shown. Not modeled. No real-time conditions are used anywhere.", "status": "CONCEPTUAL"},
         ],
         "evidence": [{"name": topo["source_name"], "detail": f"{topo['mission']} · {topo['instrument']} · {topo['product']}", "status": topo["status"]}]
                     + [{"name": l["name"], "detail": l["provenance"]["product"], "status": l["provenance"]["status"]} for l in man["layers"][1:]],
-        "method": [f"A* on the native 1/{man['region']['ppd']:g}° MOLA grid (8-connected, spherical step lengths) — optimal and deterministic.",
+        "method": [f"{route['grid']['algorithm']} on the {route['grid']['cell_deg']} {route['grid']['level']} grid "
+                   f"({route['grid']['method'] if route['grid']['level'] != 'native' else 'source cells'}) — 8-connected, spherical step lengths, optimal and deterministic.",
+                   f"Slope evidence also read along the path on the {route['grid']['evidence_grid']} analysis grid (max {m.get('slope_max_deg_analysis')}°). Finer grids are interpolated and add no terrain detail.",
                    f"Cell cost c = β + α·T + γ·(1−S) with α={route['weights']['alpha']}, β={route['weights']['beta']}, γ={route['weights']['gamma']} ({route['mode_label']}).",
                    f"Candidate science stop = target within {STOP_RADIUS_M:.0f} m of the route."],
-        "uncertainty": ["Terrain resolution ~463 m per cell; metre-scale obstacles (boulders, small craters) are not represented.",
-                        "No surface imagery (HiRISE) or composition data (CRISM) integrated yet.",
+        "uncertainty": ["Terrain source resolution ~463 m per cell (1/128°); the finer route grid is interpolated, so metre-scale obstacles (boulders, small craters) are still not represented.",
+                        "No orbital imagery (CTX, HiRISE) or composition data (CRISM) integrated; the SURFACE layer is shaded relief computed from the same elevation grid.",
                         "Cost-model weights are configurable assumptions, not human mobility limits.",
                         "Candidate science targets come from published descriptions or derived topography — not new detections.",
                         "Target positions marked APPROXIMATE are placements, not surveyed points."]

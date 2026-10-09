@@ -69,3 +69,33 @@ React/Leaflet UI (CRS.Simple on the lat/lon grid). `scripts/build_snapshot.py` f
 - None used for numbers. All coordinates/values used come from the project files or from the master prompt
   (Butler Landing 18.4447°N, 77.4508°E; region bounds; source URLs). Anything else written in docs as context
   (e.g. "CTX DEM is ~20 m") is copied from the master prompt's source list, not measured here.
+
+---
+
+## Phase 1 — Best available offline terrain as the main terrain (DONE)
+- **Input:** the only local terrain is the synthetic fixture (see Phase 0). Its label: simple cylindrical,
+  planetocentric, east-positive, sphere R = 3396.0 km, 1/128° per pixel, no `MISSING_CONSTANT` (so no nodata value
+  is defined; none is guessed). It keeps status **SYNTHETIC** everywhere. No CTX file exists → no CTX-vs-MOLA comparison was made.
+- **New grids** (`backend/app/geospatial/levels.py`), built at start-up from `grid.npz` in ~0.3–0.4 s, not shipped:
+  routing **1/512° (~116 m)** and analysis **1/1024° (~58 m)**, cubic spline (`scipy.ndimage.map_coordinates`,
+  order 3, prefilter, 8-cell odd-reflection edge padding); shot counts by nearest neighbour; relief window scaled to
+  keep the ~1.4 km footprint (13×13 cells at 1/512°). **Finer spacing adds no terrain information.**
+- **Slope statistics (synthetic fixture — method demonstration only):**
+
+  | grid | spacing | mean | p95 | p99 | max | cells > 25° |
+  |---|---|---|---|---|---|---|
+  | native | 1/128° ≈ 463 m | 3.08° | 10.63° | 12.26° | 20.45° | 0 |
+  | routing | 1/512° ≈ 116 m | 3.53° | 10.97° | 13.15° | 25.88° | 6 |
+  | analysis | 1/1024° ≈ 58 m | 3.57° | 11.00° | 13.25° | 26.27° | 29 |
+
+  The maximum rises mostly because cubic splines overshoot at sharp breaks (and the fixture has 6 m random noise),
+  not because finer detail was found. The 25° limit stays an **ASSUMPTION**.
+- **Routing:** routes now run on the 1/512° grid with an exact Dijkstra (scipy.sparse.csgraph, same edge model as A*);
+  native 1/128° + A* stays selectable (`"grid": "native"`). Slope evidence is also read along the path on the 1/1024° grid.
+- **Timings (this cloud machine, best of 3, Demo Mission endpoints):** native A* 0.04–0.07 s; routing-grid A*
+  0.60–1.20 s; routing-grid Dijkstra 0.16–0.17 s (same paths and costs as A*). Store start-up 0.5 s.
+- **No FastAPI here:** logic moved to `app/api/handlers.py`; `app/main.py` (FastAPI) and new `app/lite.py`
+  (Starlette, installed) serve the same API. `run.py` picks FastAPI if installed, else the fallback. Tests and the
+  snapshot builder use an in-process ASGI client (`app/api/asgi_client.py`) — no httpx, no sockets.
+- **Tests:** 31 passed (17 original — the 3 API tests now run against the Starlette server — + 14 new).
+- **Next:** Phase 2 surface layer.

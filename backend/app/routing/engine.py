@@ -102,6 +102,65 @@ def astar(grid: Grid, c: np.ndarray, start: tuple, goal: tuple, beta: float):
     return path[::-1], float(g[goal_k])
 
 
+def _edges(grid: Grid):
+    """All 8-connected edges between passable cells, with spherical step lengths (cached on the grid)."""
+    if getattr(grid, "_edge_cache", None) is not None:
+        return grid._edge_cache
+    h, w = grid.h, grid.w
+    idx = np.arange(h * w).reshape(h, w)
+    src, dst, step = [], [], []
+    for di, dj in _NB:
+        i0, i1 = max(0, -di), h - max(0, di)
+        j0, j1 = max(0, -dj), w - max(0, dj)
+        a = grid.passable[i0:i1, j0:j1] & grid.passable[i0 + di:i1 + di, j0 + dj:j1 + dj]
+        s = idx[i0:i1, j0:j1][a]; d = idx[i0 + di:i1 + di, j0 + dj:j1 + dj][a]
+        rows = np.arange(i0, i1)
+        dx = 0.5 * (grid.dx[rows] + grid.dx[rows + di]) * dj
+        st = np.sqrt(dx[:, None] ** 2 + (grid.dy * di) ** 2) * np.ones((1, j1 - j0))
+        src.append(s); dst.append(d); step.append(st[a])
+    grid._edge_cache = (np.concatenate(src), np.concatenate(dst), np.concatenate(step))
+    return grid._edge_cache
+
+
+def shortest_path(grid: Grid, c: np.ndarray, start: tuple, goal: tuple):
+    """Exact least-cost path with the SAME edge model as `astar` (step length x mean cell cost),
+    solved by Dijkstra in compiled code (scipy.sparse.csgraph). Used on the large routing grid, where the
+    pure-Python A* would be too slow. Optimal and deterministic; equal-cost ties may be broken differently."""
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import dijkstra
+    if not grid.passable[start] or not grid.passable[goal]:
+        raise DataError("Start or destination lies on a cell excluded by the terrain model")
+    src, dst, step = _edges(grid)
+    cf = c.ravel()
+    wgt = step * 0.5 * (cf[src] + cf[dst])
+    n = grid.h * grid.w
+    G = csr_matrix((wgt, (src, dst)), shape=(n, n))
+    s = start[0] * grid.w + start[1]; t = goal[0] * grid.w + goal[1]
+    dist, pred = dijkstra(G, directed=True, indices=s, return_predecessors=True)
+    if not np.isfinite(dist[t]):
+        raise DataError("No connected route exists between these points under the current terrain model")
+    path, k = [], t
+    while k != -9999 and k != s:
+        path.append(divmod(int(k), grid.w)); k = pred[k]
+    path.append(divmod(int(s), grid.w))
+    return path[::-1], float(dist[t])
+
+
+def sample_slope_along(fine: Grid, lat: np.ndarray, lon: np.ndarray):
+    """Densify a lat/lon polyline to the fine grid spacing and read its slope cells (nearest cell).
+    Returns per-vertex-interval arrays (mean, max) so callers can aggregate per segment."""
+    n = len(lat)
+    means, maxs = np.zeros(max(n - 1, 1)), np.zeros(max(n - 1, 1))
+    for k in range(n - 1):
+        m = max(2, int(np.ceil(max(abs(lat[k + 1] - lat[k]), abs(lon[k + 1] - lon[k])) * fine.ppd * 2)) + 1)
+        la = np.linspace(lat[k], lat[k + 1], m); lo = np.linspace(lon[k], lon[k + 1], m)
+        i = np.clip(np.floor((fine.lat_max - la) * fine.ppd).astype(int), 0, fine.h - 1)
+        j = np.clip(np.floor((lo - fine.lon_west) * fine.ppd).astype(int), 0, fine.w - 1)
+        v = fine.slope[i, j]
+        means[k], maxs[k] = float(np.nanmean(v)), float(np.nanmax(v))
+    return means, maxs
+
+
 def analyse(grid: Grid, S, c, path, mode, targets):
     """Per-vertex profile, ~1.5 km segments with evidence values, and route metrics (all derived)."""
     ii = np.array([p[0] for p in path]); jj = np.array([p[1] for p in path])
