@@ -16,7 +16,10 @@ from app.ingestion.pds3 import read_megdr, clip, DataError  # noqa
 from app.geospatial.terrain import slope_deg, local_relief_m, hillshade, haversine_m  # noqa
 from app.provenance.registry import mola_record, derived_record, grid_record, UNAVAILABLE  # noqa
 from app.geospatial.levels import LEVELS, build_level, slope_stats, level_description  # noqa
+from app.ingestion.traverse import load_real_path, illustrative_path  # noqa
+from app.ingestion.local_inventory import inventory  # noqa
 
+SURFACE_SHADE = {"azimuth": 315.0, "altitude": 45.0, "exaggeration": 3.0}   # display settings for the SURFACE layer
 DISCLOSURE = "Pre-event concept prototype, not work produced during the official hackathon (Nov 14-15, 2026)."
 
 
@@ -96,12 +99,13 @@ def main():
             best = (float(z[i, j]), float(rc.lat_of_row(i)), float(rc.lon_of_col(j)), frac)
     rim = {"id": "west_rim", "name": "Jezero west rim crest (derived)", "lat": round(best[1], 4), "lon": round(best[2], 4),
            "role": "destination", "science": True, "status": "SYNTHETIC" if synthetic else "DERIVED",
-           "source": f"Highest MOLA elevation ({best[0]:.0f} m) sampled along the azimuth from the crater centre through the landing site, "
+           "source": f"Highest {'synthetic-fixture' if synthetic else 'MOLA'} elevation ({best[0]:.0f} m) sampled along the azimuth from the crater centre through the landing site, "
                      f"between 0.70 and 1.35 crater radii (found at {best[3]:.2f} R).",
            "source_url": "derived from " + ("synthetic fixture" if synthetic else f"MOLA {MOLA_TOPO_TILE}"),
            "why": "Impact-crater rims expose material uplifted from depth; a rim position also gives the crew a regional overview.",
            "investigate": "Rim-forming rock types and their relation to crater-floor and delta deposits.",
-           "limitation": "Located from ~463 m topography only; the exact crest and access path need HiRISE-scale data."}
+           "limitation": ("Located on SYNTHETIC terrain: this point is a pipeline demonstration, not the real rim crest. "
+                          if synthetic else "") + "Located from ~463 m topography only; the exact crest and access path need HiRISE-scale data."}
     targets = [t for t in targets if t["id"] != "west_rim"] + [rim]
     if synthetic:
         for t in targets:
@@ -129,16 +133,74 @@ def main():
     save(ramp(rg["slope"] / smax, [(0, (224, 168, 74, 0)), (0.15, (224, 168, 74, 40)), (0.5, (224, 168, 74, 170)), (1, (200, 70, 40, 235))]), out / "layers" / "slope.png")
     save(ramp(T, [(0, (224, 168, 74, 0)), (0.2, (224, 168, 74, 60)), (0.6, (210, 110, 50, 180)), (1, (180, 50, 35, 235))]), out / "layers" / "cost.png")
     save(ramp(S, [(0, (116, 214, 210, 0)), (0.3, (116, 214, 210, 50)), (1, (150, 235, 230, 190))]), out / "layers" / "science.png")
+    # ---- Phase 2: SURFACE layer = shaded relief computed from the elevation grid (no imagery exists locally) ----
+    an = lv["analysis"]
+    lat_an = rc.lat_max - (np.arange(an["z"].shape[0]) + 0.5) / an["ppd"]
+    hs_an = hillshade(an["z"], lat_an, an["ppd"], rc.radius_m, azimuth=SURFACE_SHADE["azimuth"], altitude=SURFACE_SHADE["altitude"],
+                      exaggeration=SURFACE_SHADE["exaggeration"])
+    g8 = np.clip(40 + 200 * hs_an, 0, 255).astype(np.uint8)
+    surf = np.dstack([g8, g8, g8, np.full_like(g8, 255)])
+    save(surf, out / "layers" / "surface.png")
+    surface_bytes = (out / "layers" / "surface.png").stat().st_size
     if counts is not None:
         cov = np.zeros(z.shape + (4,), np.uint8); cov[counts == 0] = (236, 230, 220, 120)
         save(cov, out / "layers" / "coverage.png")
 
     b = rc.bounds()
+    # ---- Phase 4: Perseverance path slot (real local file if present, else a labelled illustration) ----
+    overlays = []
+    real_path = RAW / "m20" / "M20_traverse.json"
+    if real_path.exists():
+        rp = load_real_path(real_path, rc.radius_m, b)
+        overlays.append({"id": "perseverance_path", "kind": "real", "name": "Perseverance traverse (local copy)",
+                         "lines": rp["lines"], "default": False,
+                         "check": {"coordinate_convention": rp["convention"], "in_region_share": rp["in_region_share"], "vertices": rp["vertices"]},
+                         "provenance": {"id": "perseverance_path", "source_name": "Perseverance traverse — NASA Mars 2020 location map (local copy)",
+                                        "mission": "Mars 2020 (NASA)", "instrument": "rover localization (NASA/JPL-Caltech)",
+                                        "product": "M20_traverse.json", "source_url": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_traverse.json",
+                                        "archive": "unofficial endpoint of the NASA location-map page; local copy in data/raw/m20/",
+                                        "spatial_reference": f"GeoJSON; convention detected: {rp['convention']['convention']}",
+                                        "coverage": "full path; in-region share computed", "resolution": "vertex list",
+                                        "retrieval_date": time.strftime("%Y-%m-%d", time.localtime(real_path.stat().st_mtime)) + " (file date of the local copy)",
+                                        "processing_steps": ["read GeoJSON geometry only (no property names assumed)",
+                                                             f"coordinate convention checked against Butler Landing: nearest vertex {rp['convention']['nearest_to_reference_km']} km",
+                                                             f"in-region length share {rp['in_region_share']:.1%}"],
+                                        "credit": "NASA/JPL-Caltech", "notes": "Descriptive display only; no metrics are computed from it in this build.",
+                                        "limitations": ["Unofficial endpoint; keep a dated local copy", "Display only — not used to judge route safety or accuracy"],
+                                        "status": "VERIFIED"}})
+    else:
+        overlays.append({"id": "perseverance_path", "kind": "illustrative", "name": "Synthetic illustrative path — not rover data",
+                         "lines": [illustrative_path(b)], "default": False,
+                         "provenance": {"id": "perseverance_path", "source_name": "Synthetic illustrative path — not rover data",
+                                        "mission": "none (synthetic)", "instrument": "none", "product": "schematic sine-wave polyline for interface testing",
+                                        "source_url": "generated — backend/app/ingestion/traverse.py: illustrative_path()",
+                                        "archive": "none", "spatial_reference": "lat/lon, inside the region bounds",
+                                        "coverage": "southern band of the map; deliberately away from the landing site",
+                                        "resolution": "60 vertices", "retrieval_date": time.strftime("%Y-%m-%d"),
+                                        "processing_steps": ["deterministic sine wave between fixed points inside the map bounds"],
+                                        "credit": "MARSCOPE (not NASA)", "notes": "Tests the map's path slot until a real local file (data/raw/m20/M20_traverse.json) is added.",
+                                        "limitations": ["NOT the Perseverance path", "No rover metrics are computed or shown",
+                                                        "Its position and shape carry no meaning"],
+                                        "status": "SYNTHETIC"}})
     mola = mola_record({**r.meta, "retrieved": retrieved or time.strftime("%Y-%m-%d")}, steps, synthetic)
     layers = [
-        {"id": "terrain", "name": "Terrain (MOLA elevation + hillshade)", "png": "terrain.png", "default": True, "smooth": True,
+        {"id": "terrain", "name": "Terrain (" + ("synthetic fixture" if synthetic else "MOLA") + " elevation + hillshade, 1/128°)", "png": "terrain.png", "default": True, "smooth": True,
          "legend": {"type": "ramp", "min": round(zmin), "max": round(zmax), "unit": "m (rel. areoid)", "colors": ["#34201a", "#8e482a", "#c88c60", "#ecd6b4"]},
          "provenance": mola},
+        {"id": "surface", "name": "Shaded relief (computed from elevation — not imagery)", "png": "surface.png", "smooth": True,
+         "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "illumination (az 315°, alt 45°)", "colors": ["#282828", "#e8e8e8"]},
+         "provenance": derived_record("surface", "Shaded relief " + ("of the SYNTHETIC fixture terrain" if synthetic else "of MOLA terrain"),
+                                      f"hillshade = cos(angle between surface normal and a sun at azimuth {SURFACE_SHADE['azimuth']:.0f}°, "
+                                      f"altitude {SURFACE_SHADE['altitude']:.0f}°), {SURFACE_SHADE['exaggeration']:g}x vertical exaggeration, on the 1/1024° analysis grid",
+                                      ["elevation on the 1/1024° analysis grid (cubic interpolation of the 1/128° source grid)"], "0–1 illumination",
+                                      ["This is NOT an orbital photograph and NOT CTX or HiRISE imagery",
+                                       "It shows the same elevation data as light and shadow; it adds no new evidence",
+                                       f"Vertical exaggeration {SURFACE_SHADE['exaggeration']:g}x is for display only",
+                                       "Source information is ~463 m; the 1/1024° pixel size is interpolation"], synthetic,
+                                      resolution=f"{an['z'].shape[1]} x {an['z'].shape[0]} px at 1/1024° (~58 m); source 1/128° (~463 m)",
+                                      spatial_reference="1/1024° lat/lon grid, exactly the same bounds as the native grid",
+                                      steps=["cubic interpolation of the native grid to 1/1024°", "hillshade (az 315°, alt 45°)",
+                                             f"8-bit greyscale PNG, {surface_bytes/1e6:.2f} MB"])},
         {"id": "slope", "name": "Slope (1/512° routing grid)", "png": "slope.png", "legend": {"type": "ramp", "min": 0, "max": round(smax, 1), "unit": "degrees",
          "colors": ["#e0a84a00", "#e0a84aaa", "#c84628"]},
          "provenance": derived_record("slope", "Slope " + ("from the synthetic fixture" if synthetic else "from MOLA"),
@@ -160,8 +222,8 @@ def main():
                                       ["candidate science targets (see Sources)"], "0–1", ["Depends on the target list, not on spectral data", f"sigma = {SCIENCE_SIGMA_M:.0f} m is an ASSUMPTION"], synthetic)},
     ]
     if counts is not None:
-        layers.append({"id": "coverage", "name": "MOLA coverage (interpolated bins)", "png": "coverage.png",
-                       "legend": {"type": "swatch", "label": "0 MOLA shots in bin (interpolated)", "colors": ["#ece6dc78"]},
+        layers.append({"id": "coverage", "name": ("Shot-count coverage (synthetic gaps)" if synthetic else "MOLA coverage (interpolated bins)"), "png": "coverage.png",
+                       "legend": {"type": "swatch", "label": "0 shots in bin (interpolated)", "colors": ["#ece6dc78"]},
                        "provenance": {**mola_record(r.meta, [cstep or {}], synthetic, "counts"), "id": "mola_counts"}})
     manifest = {
         "data_mode": "SYNTHETIC_FIXTURE" if synthetic else "NASA_PDS",
@@ -169,7 +231,8 @@ def main():
         "region": {**REGION, "bounds": b, "shape": list(z.shape), "ppd": rc.ppd, "radius_m": rc.radius_m},
         "layers": layers, "targets": targets, "unavailable": UNAVAILABLE, "disclosure": DISCLOSURE,
         "grid_records": [grid_record(level_info[k], synthetic) for k in ("routing", "analysis")],
-        "slope_by_level": slope_by_level,
+        "slope_by_level": slope_by_level, "overlays": overlays,
+        "local_inventory": inventory(RAW, checksums=False),
         "assumptions": {"terrain": TERRAIN, "modes": MODES, "science_sigma_m": SCIENCE_SIGMA_M},
         "stats": {"elev_min_m": round(float(np.nanmin(z)), 1), "elev_max_m": round(float(np.nanmax(z)), 1),
                   "slope_max_deg": round(float(np.nanmax(slope)), 2), "slope_p95_deg": round(float(np.nanpercentile(slope, 95)), 2),

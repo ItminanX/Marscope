@@ -94,6 +94,8 @@ UNAVAILABLE = [
      "plan": "Planned for the hackathon event: surface-material context (rocky vs. fine-grained) along the route."},
     {"id": "sharad", "name": "SHARAD radargrams (MRO)", "status": "CONCEPTUAL",
      "plan": "Planned for the hackathon event: shallow-subsurface context along ground tracks."},
+    {"id": "global", "name": "Global Mars context view", "status": "CONCEPTUAL",
+     "plan": "No local global basemap and no online tiles in this offline build. The GLOBAL view is a schematic globe (graticule + region location only) — not a NASA basemap."},
     {"id": "weather", "name": "MEDA conditions (Mars 2020) / live environment", "status": "CONCEPTUAL",
      "plan": "No MEDA files provided, so no temperatures, pressures or winds are shown. No live or real-time Mars conditions are used anywhere in MARSCOPE."},
 ]

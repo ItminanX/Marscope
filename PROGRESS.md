@@ -99,3 +99,36 @@ React/Leaflet UI (CRS.Simple on the lat/lon grid). `scripts/build_snapshot.py` f
   snapshot builder use an in-process ASGI client (`app/api/asgi_client.py`) — no httpx, no sockets.
 - **Tests:** 31 passed (17 original — the 3 API tests now run against the Starlette server — + 14 new).
 - **Next:** Phase 2 surface layer.
+
+---
+
+## Phase 2 — Offline surface layer (DONE, backend; UI in Phase 8 build)
+- No local imagery exists (no CTX orthomosaic, no HiRISE). The SURFACE layer is a **shaded relief** computed from the
+  1/1024° analysis-grid elevation (az 315°, alt 45°, 3× vertical exaggeration, greyscale). `surface.png` is
+  1288 × 1088 px, 0.54 MB, exactly the grid bounds. Status **SYNTHETIC** (input is the fixture); it would be
+  **DERIVED** with real MOLA. Its provenance says: not an orbital photograph, not CTX/HiRISE, adds no new evidence.
+
+## Phase 3 — Delta-front target (DONE — kept APPROXIMATE, not moved)
+- The only local terrain is synthetic, so it holds **no evidence** about the real delta. The fixture even contains a
+  generated fan-shaped bump (from `make_fixture.py`) — using it to move the point would be circular. The point stays
+  at 18.465°N 77.415°E, **APPROXIMATE**, with an `offline_review` note. QGIS check steps are in `docs/DATA.md`.
+
+## Phase 4 — Perseverance path (DONE — illustrative only)
+- No local traverse/waypoint file. Added `backend/app/ingestion/traverse.py`: reads a future local
+  `data/raw/m20/M20_traverse.json` as plain GeoJSON geometry (no property names assumed), checks the coordinate
+  convention against Butler Landing (18.4447°N, 77.4508°E), reports in-region share. Until then the map offers an
+  optional **"Synthetic illustrative path — not rover data"** (sine wave in the south of the map, > 20 km from the
+  landing site, no metrics). API: `GET /api/overlays`.
+
+## Phase 5 — CRISM (SKIPPED — source absent)
+- `jezeroFinal.tif` + readme are not present. No classes invented, no mineral layer. Status **DATA_UNAVAILABLE**.
+  The science field still uses candidate targets only (unchanged method).
+
+## Phase 6 — MEDA (SKIPPED — no files provided)
+- Conditions stay **CONCEPTUAL**; the brief says no measured temperature/pressure/wind is shown.
+
+## Phase 7 — Global context (DONE — CONCEPTUAL schematic)
+- No local basemap. Registry entry `global` = **CONCEPTUAL**; the UI will show a schematic graticule globe with only
+  the region location (Phase 8 build). `scripts/check_local_data.py` lists every expected source file and whether it
+  is present (all absent in this build).
+- **Tests:** 45 passed.
