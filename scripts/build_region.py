@@ -1,0 +1,165 @@
+#!/usr/bin/env python3
+"""Pipeline: read MEGDR -> validate -> clip ROI (no resampling) -> derive slope/relief/hillshade
+-> derive rim target -> render layer PNGs -> write data/processed/<region>/ with full provenance.
+
+  python scripts/build_region.py            # uses real MOLA in data/raw if present, else the synthetic fixture
+  python scripts/build_region.py --fixture  # force the synthetic fixture
+"""
+import sys, json, time
+from pathlib import Path
+import numpy as np
+from PIL import Image
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "backend"))
+from app.config import RAW, FIXTURES, PROCESSED, TARGETS, REGION, MOLA_TOPO_TILE, MOLA_COUNT_TILE, TERRAIN, MODES, SCIENCE_SIGMA_M  # noqa
+from app.ingestion.pds3 import read_megdr, clip, DataError  # noqa
+from app.geospatial.terrain import slope_deg, local_relief_m, hillshade, haversine_m  # noqa
+from app.provenance.registry import mola_record, derived_record, UNAVAILABLE  # noqa
+
+
+def ramp(v, stops):
+    """Piecewise-linear colour ramp; stops = [(t, (r,g,b,a)), ...] with t in [0,1]."""
+    v = np.clip(v, 0, 1); out = np.zeros(v.shape + (4,))
+    ts = [s[0] for s in stops]
+    for c in range(4):
+        out[..., c] = np.interp(v, ts, [s[1][c] for s in stops])
+    return out.astype(np.uint8)
+
+
+def save(arr, path):
+    Image.fromarray(arr, "RGBA").save(path, optimize=True)
+
+
+def main():
+    force_fixture = "--fixture" in sys.argv
+    real = RAW / f"{MOLA_TOPO_TILE}.lbl"
+    synthetic = force_fixture or not real.exists()
+    topo_lbl = FIXTURES / "megt_fixture.lbl" if synthetic else real
+    cnt_lbl = FIXTURES / "megc_fixture.lbl" if synthetic else RAW / f"{MOLA_COUNT_TILE}.lbl"
+    if synthetic and not topo_lbl.exists():
+        raise SystemExit("No data. Run scripts/fetch_mola.py (real) or scripts/make_fixture.py (synthetic test).")
+    print(("SYNTHETIC FIXTURE MODE — NOT NASA DATA" if synthetic else "REAL MOLA MEGDR") + f": {topo_lbl.name}")
+    retrieved = None
+    log = RAW / "retrieval_log.json"
+    if not synthetic and log.exists():
+        retrieved = json.loads(log.read_text()).get(MOLA_TOPO_TILE, {}).get("retrieved")
+
+    r = read_megdr(topo_lbl)
+    steps = [{"step": "read", "file": r.meta["image"], "bytes": r.meta["bytes"], "lines": r.meta["lines"], "samples": r.meta["samples"],
+              "sample_type": r.meta["sample_type"], "validation": "file size and map extents checked against label"}]
+    roi = (REGION["lat_min"], REGION["lat_max"], REGION["lon_min"], REGION["lon_max"])
+    rc, st = clip(r, *roi); steps.append(st)
+    counts, cstep = None, None
+    if cnt_lbl.exists():
+        c = read_megdr(cnt_lbl)
+        cc, cstep = clip(c, *roi)
+        if (cc.ppd, cc.lat_max, cc.lon_west, cc.shape) != (rc.ppd, rc.lat_max, rc.lon_west, rc.shape):
+            raise DataError("Counts tile is not aligned with the topography grid")
+        counts = cc.data
+        steps.append({"step": "align", "note": "shot-count grid verified identical to topography grid (same ppd, origin, shape)"})
+    z = rc.data
+    lat = rc.lat_of_row(np.arange(z.shape[0]))
+    slope = slope_deg(z, lat, rc.ppd, rc.radius_m)
+    relief = local_relief_m(z, 3)
+    hs = hillshade(z, lat, rc.ppd, rc.radius_m)
+    steps.append({"step": "derive", "note": "slope = atan(|grad z|) by central differences with dx = dy*cos(lat); relief = 3x3 max-min; hillshade az 315°, alt 45°, 3x vertical exaggeration (display only)"})
+
+    # ---- targets: load, then derive the west rim crest from the data ----
+    tdoc = json.loads((TARGETS / f"{REGION['id']}_targets.json").read_text())
+    targets = tdoc["targets"]
+    c_lat, c_lon = REGION["crater_center"]
+    st_t = next(t for t in targets if t["role"] == "start")
+    km_lat = np.pi * rc.radius_m / 180 / 1000
+    vy = (st_t["lat"] - c_lat) * km_lat; vx = (st_t["lon"] - c_lon) * km_lat * np.cos(np.radians(c_lat))
+    n = np.hypot(vx, vy); vx, vy = vx / n, vy / n
+    best = None
+    for frac in np.linspace(0.7, 1.35, 140):
+        d = frac * REGION["crater_radius_km"]
+        la = c_lat + vy * d / km_lat; lo = c_lon + vx * d / (km_lat * np.cos(np.radians(c_lat)))
+        i, j = int(rc.row_of_lat(la) + 0.5), int(rc.col_of_lon(lo) + 0.5)
+        if 0 <= i < z.shape[0] and 0 <= j < z.shape[1] and np.isfinite(z[i, j]) and (best is None or z[i, j] > best[0]):
+            best = (float(z[i, j]), float(rc.lat_of_row(i)), float(rc.lon_of_col(j)), frac)
+    rim = {"id": "west_rim", "name": "Jezero west rim crest (derived)", "lat": round(best[1], 4), "lon": round(best[2], 4),
+           "role": "destination", "science": True, "status": "SYNTHETIC" if synthetic else "DERIVED",
+           "source": f"Highest MOLA elevation ({best[0]:.0f} m) sampled along the azimuth from the crater centre through the landing site, "
+                     f"between 0.70 and 1.35 crater radii (found at {best[3]:.2f} R).",
+           "source_url": "derived from " + ("synthetic fixture" if synthetic else f"MOLA {MOLA_TOPO_TILE}"),
+           "why": "Impact-crater rims expose material uplifted from depth; a rim position also gives the crew a regional overview.",
+           "investigate": "Rim-forming rock types and their relation to crater-floor and delta deposits.",
+           "limitation": "Located from ~463 m topography only; the exact crest and access path need HiRISE-scale data."}
+    targets = [t for t in targets if t["id"] != "west_rim"] + [rim]
+    if synthetic:
+        for t in targets:
+            t["fixture_note"] = "Shown on SYNTHETIC terrain — terrain values near this point are not real."
+
+    # ---- science proximity (for the layer image) ----
+    LA, LO = np.meshgrid(lat, rc.lon_of_col(np.arange(z.shape[1])), indexing="ij")
+    S = np.zeros_like(z)
+    for t in targets:
+        if t.get("science"):
+            S = np.maximum(S, np.exp(-haversine_m(LA, LO, t["lat"], t["lon"], rc.radius_m) ** 2 / (2 * SCIENCE_SIGMA_M ** 2)))
+    tc = TERRAIN
+    T = tc["w_slope"] * np.minimum(1, slope / tc["slope_ref_deg"]) ** 2 + tc["w_relief"] * np.minimum(1, relief / tc["relief_ref_m"])
+
+    out = PROCESSED / REGION["id"]; (out / "layers").mkdir(parents=True, exist_ok=True)
+    zf = np.where(np.isfinite(z), z, np.nanmean(z))
+    zmin, zmax = float(np.nanpercentile(z, 1)), float(np.nanpercentile(z, 99))
+    zn = (zf - zmin) / (zmax - zmin)
+    base = ramp(zn, [(0, (52, 30, 22, 255)), (0.45, (142, 72, 42, 255)), (0.8, (200, 140, 96, 255)), (1, (236, 214, 180, 255))]).astype(float)
+    shade = (0.35 + 0.85 * hs)[..., None]
+    base[..., :3] = np.clip(base[..., :3] * shade, 0, 255)
+    save(base.astype(np.uint8), out / "layers" / "terrain.png")
+    smax = max(20.0, float(np.nanpercentile(slope, 99.5)))
+    save(ramp(slope / smax, [(0, (224, 168, 74, 0)), (0.15, (224, 168, 74, 40)), (0.5, (224, 168, 74, 170)), (1, (200, 70, 40, 235))]), out / "layers" / "slope.png")
+    save(ramp(T, [(0, (224, 168, 74, 0)), (0.2, (224, 168, 74, 60)), (0.6, (210, 110, 50, 180)), (1, (180, 50, 35, 235))]), out / "layers" / "cost.png")
+    save(ramp(S, [(0, (116, 214, 210, 0)), (0.3, (116, 214, 210, 50)), (1, (150, 235, 230, 190))]), out / "layers" / "science.png")
+    if counts is not None:
+        cov = np.zeros(z.shape + (4,), np.uint8); cov[counts == 0] = (236, 230, 220, 120)
+        save(cov, out / "layers" / "coverage.png")
+
+    b = rc.bounds()
+    mola = mola_record({**r.meta, "retrieved": retrieved or time.strftime("%Y-%m-%d")}, steps, synthetic)
+    layers = [
+        {"id": "terrain", "name": "Terrain (MOLA elevation + hillshade)", "png": "terrain.png", "default": True, "smooth": True,
+         "legend": {"type": "ramp", "min": round(zmin), "max": round(zmax), "unit": "m (rel. areoid)", "colors": ["#34201a", "#8e482a", "#c88c60", "#ecd6b4"]},
+         "provenance": mola},
+        {"id": "slope", "name": "Slope", "png": "slope.png", "legend": {"type": "ramp", "min": 0, "max": round(smax, 1), "unit": "degrees",
+         "colors": ["#e0a84a00", "#e0a84aaa", "#c84628"]},
+         "provenance": derived_record("slope", "Slope from MOLA", "slope = atan(sqrt((dz/dx)^2 + (dz/dy)^2)), central differences, dx = dy*cos(lat)",
+                                      ["MOLA topography"], "degrees", ["Slope over ~926 m baselines; short steep features are smoothed out"], synthetic)},
+        {"id": "cost", "name": "Modeled terrain cost T", "png": "cost.png", "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "dimensionless",
+         "colors": ["#e0a84a00", "#d26e32b4", "#b43223"]},
+         "provenance": derived_record("cost", "Modeled terrain cost", f"T = {tc['w_slope']}*min(1,slope/{tc['slope_ref_deg']}°)^2 + {tc['w_relief']}*min(1,relief/{tc['relief_ref_m']} m)",
+                                      ["slope", "3x3 local relief"], "0–1", ["Weights and reference values are ASSUMPTIONS", "Not a safety or hazard score"], synthetic)},
+        {"id": "science", "name": "Science proximity S", "png": "science.png", "legend": {"type": "ramp", "min": 0, "max": 1, "unit": "dimensionless",
+         "colors": ["#74d6d200", "#96ebe6be"]},
+         "provenance": derived_record("science", "Science proximity", f"S = max_k exp(-d_k^2 / (2*{SCIENCE_SIGMA_M:.0f} m^2)) over candidate science targets",
+                                      ["candidate science targets (see Sources)"], "0–1", ["Depends on the target list, not on spectral data", f"sigma = {SCIENCE_SIGMA_M:.0f} m is an ASSUMPTION"], synthetic)},
+    ]
+    if counts is not None:
+        layers.append({"id": "coverage", "name": "MOLA coverage (interpolated bins)", "png": "coverage.png",
+                       "legend": {"type": "swatch", "label": "0 MOLA shots in bin (interpolated)", "colors": ["#ece6dc78"]},
+                       "provenance": {**mola_record(r.meta, [cstep or {}], synthetic, "counts"), "id": "mola_counts"}})
+    manifest = {
+        "data_mode": "SYNTHETIC_FIXTURE" if synthetic else "NASA_PDS",
+        "built": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "region": {**REGION, "bounds": b, "shape": list(z.shape), "ppd": rc.ppd, "radius_m": rc.radius_m},
+        "layers": layers, "targets": targets, "unavailable": UNAVAILABLE,
+        "assumptions": {"terrain": TERRAIN, "modes": MODES, "science_sigma_m": SCIENCE_SIGMA_M},
+        "stats": {"elev_min_m": round(float(np.nanmin(z)), 1), "elev_max_m": round(float(np.nanmax(z)), 1),
+                  "slope_max_deg": round(float(np.nanmax(slope)), 2), "slope_p95_deg": round(float(np.nanpercentile(slope, 95)), 2),
+                  "interpolated_fraction": None if counts is None else round(float((counts == 0).mean()), 3),
+                  "excluded_cells": int((slope > TERRAIN["max_slope_deg"]).sum())},
+    }
+    np.savez_compressed(out / "grid.npz", z=z, slope=slope, relief=relief, counts=(counts if counts is not None else np.full(z.shape, -1)),
+                        lat_max=rc.lat_max, lon_west=rc.lon_west, ppd=rc.ppd, radius_m=rc.radius_m)
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
+    print(f"wrote {out}: grid {z.shape}, elev {manifest['stats']['elev_min_m']}..{manifest['stats']['elev_max_m']} m, "
+          f"slope max {manifest['stats']['slope_max_deg']}°, rim at {rim['lat']},{rim['lon']}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except DataError as e:
+        raise SystemExit(f"DATA ERROR: {e}")

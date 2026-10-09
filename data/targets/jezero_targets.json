@@ -1,0 +1,24 @@
+{
+  "region": "jezero",
+  "note": "Each target states where its position comes from. APPROXIMATE positions must be checked against the real MOLA/HiRISE data before presenting.",
+  "targets": [
+    {"id": "butler_landing", "name": "Octavia E. Butler Landing (Perseverance landing site)", "lat": 18.4447, "lon": 77.4508,
+     "role": "start", "science": false, "status": "VERIFIED",
+     "source": "NASA named the Mars 2020 landing site on 5 March 2021; published coordinates 18.4447°N, 77.4508°E (≈18°26'N 77°27'E).",
+     "source_url": "https://mars.nasa.gov/resources/25701/welcome-to-octavia-e-butler-landing/",
+     "why": "Documented, real starting point on the crater floor.",
+     "investigate": "Starting context only.",
+     "limitation": "Position precision ~0.01°; one MOLA cell is ~0.008°."},
+    {"id": "jezero_center", "name": "Jezero crater (centre)", "lat": 18.38, "lon": 77.58, "role": "context", "science": false,
+     "status": "VERIFIED", "source": "IAU Gazetteer of Planetary Nomenclature value (18.38°N, 77.58°E).",
+     "source_url": "https://planetarynames.wr.usgs.gov/", "why": "Reference point used to locate the crater rim.",
+     "investigate": "—", "limitation": "Nomenclature centre, not a surveyed point."},
+    {"id": "delta_front", "name": "Western delta front", "lat": 18.465, "lon": 77.415, "role": "science", "science": true,
+     "status": "APPROXIMATE",
+     "source": "NASA describes the fan-shaped sedimentary deposit (delta) west of the landing site; position here is an approximate placement from published maps.",
+     "source_url": "https://mars.nasa.gov/mars2020/",
+     "why": "Deltas form where a river entered a lake; their layered sediments can record past water and environments.",
+     "investigate": "Layering, grain size and composition of sedimentary rocks exposed at the front.",
+     "limitation": "APPROXIMATE position — verify against the real MOLA hillshade / HiRISE before presenting. Composition is not measured by MOLA."}
+  ]
+}
