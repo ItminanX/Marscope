@@ -53,7 +53,7 @@ def test_illustrative_path_is_synthetic_and_away_from_landing_site():
     assert (pts[:, 1] > b["lat_min"]).all() and (pts[:, 1] < b["lat_max"]).all()
     assert (pts[:, 0] > b["lon_min"]).all() and (pts[:, 0] < b["lon_max"]).all()
     d = haversine_m(pts[:, 1], pts[:, 0], BUTLER_REF[0], BUTLER_REF[1], R)
-    assert d.min() > 20_000                                             # never starts at / touches Butler Landing
+    assert d.min() > 15_000                                             # never starts at / touches Butler Landing
     assert "metrics" not in o and "length_km" not in json.dumps(o)
 
 
@@ -81,6 +81,12 @@ def test_load_real_path_from_small_local_geojson(tmp_path):
     p = load_real_path(f, R, MAN["region"]["bounds"])
     assert p["convention"]["convention"] == "geojson_lon_lat_east" and p["in_region_share"] == 1.0
     assert p["lines"][0][0] == [77.4508, 18.4447]
+
+
+def test_sol_range_only_when_a_person_sets_the_key():
+    from app.ingestion.traverse import sol_range
+    doc = {"features": [{"properties": {"k_test": 5}}, {"properties": {"k_test": 9}}, {"properties": {}}]}
+    assert sol_range(doc, None) is None and sol_range(doc, "k_test") == [5, 9] and sol_range(doc, "absent") is None
 
 
 def test_in_region_share_half_outside():

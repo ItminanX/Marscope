@@ -106,7 +106,8 @@ def cell(lat: float, lon: float):
 def sources():
     m = get_store().manifest
     return {"layers": [l["provenance"] for l in m["layers"]], "targets": m["targets"], "unavailable": m["unavailable"],
-            "overlays": [o["provenance"] for o in m.get("overlays", [])], "credits": CREDITS}
+            "overlays": [o["provenance"] for o in m.get("overlays", [])], "credits": CREDITS,
+            "grids": m.get("grid_records", []), "inventory": m.get("local_inventory", [])}
 
 
 def metadata():

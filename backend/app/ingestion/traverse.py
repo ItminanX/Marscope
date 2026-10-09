@@ -75,7 +75,19 @@ def in_region_share(lat, lon, bounds, radius_m) -> float:
     return float(seg[inside].sum() / max(seg.sum(), 1e-9))
 
 
-def load_real_path(path: Path, radius_m: float, bounds: dict) -> dict:
+def sol_range(doc, key: str | None):
+    """Min/max of a numeric feature property named `key` — only when a person has set the key. Else None."""
+    if not key or not isinstance(doc, dict):
+        return None
+    vals = []
+    for f in doc.get("features") or []:
+        v = (f.get("properties") or {}).get(key) if isinstance(f, dict) else None
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            vals.append(v)
+    return [min(vals), max(vals)] if vals else None
+
+
+def load_real_path(path: Path, radius_m: float, bounds: dict, sol_key: str | None = None) -> dict:
     doc = json.loads(Path(path).read_text())
     lines = _lines_from_geojson(doc)
     pts = [p for ln in lines for p in ln]
@@ -87,12 +99,12 @@ def load_real_path(path: Path, radius_m: float, bounds: dict) -> dict:
     flat = np.array([p for ln in ll_lines for p in ln])
     share = in_region_share(flat[:, 0], flat[:, 1], bounds, radius_m)
     return {"lines": [[[round(lo, 6), round(la, 6)] for la, lo in ln] for ln in ll_lines], "convention": conv,
-            "in_region_share": round(share, 3), "vertices": int(len(flat))}
+            "in_region_share": round(share, 3), "vertices": int(len(flat)), "sol_range": sol_range(doc, sol_key)}
 
 
 def illustrative_path(bounds: dict, n: int = 60) -> list[list[float]]:
-    """Deterministic schematic wave across the southern part of the map. NOT rover data. Does not touch the
-    landing site (it stays south of 18.10°N while the landing reference is at 18.4447°N)."""
+    """Deterministic schematic wave across the northern part of the map. NOT rover data. Does not touch the
+    landing site (it stays north of 18.7°N while the landing reference is at 18.4447°N)."""
     lo = np.linspace(bounds["lon_min"] + 0.12, bounds["lon_max"] - 0.12, n)
-    la = bounds["lat_min"] + 0.12 + 0.05 * np.sin(np.linspace(0, 3 * np.pi, n))
+    la = bounds["lat_max"] - 0.14 + 0.04 * np.sin(np.linspace(0, 3 * np.pi, n))
     return [[round(float(a), 5), round(float(b), 5)] for a, b in zip(lo, la)]

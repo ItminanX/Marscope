@@ -109,7 +109,7 @@ CREDITS = [
     {"source": "CTX DEM 20 m and CTX orthomosaic 5 m, Jezero (USGS Astrogeology / NASA JPL)", "used": False,
      "credit": "NASA / JPL-Caltech / MSSS / USGS", "licence": "Intended source only — not in this build"},
     {"source": "Perseverance waypoints / traverse (NASA Mars 2020 location map)", "used": False,
-     "credit": "NASA / JPL-Caltech", "licence": "Intended source only — not in this build. The dotted grey line in the app is SYNTHETIC, not rover data."},
+     "credit": "NASA / JPL-Caltech", "licence": "Intended source only — not in this build. The dotted violet line in the app is SYNTHETIC, not rover data."},
     {"source": "CRISM-derived Jezero mineral map (Saranathan & Parente 2021, UMass Amherst; Zenodo 5575824)", "used": False,
      "credit": "Authors + NASA/JHU-APL CRISM", "licence": "Third-party product; keeps the authors' credit and Zenodo licence terms. Not in this build."},
     {"source": "Mars 2020 MEDA (PDS Atmospheres Node)", "used": False, "credit": "NASA / JPL-Caltech / CAB (CSIC-INTA)",

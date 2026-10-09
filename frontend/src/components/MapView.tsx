@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { api, layerUrl } from '../api';
-import type { Layer, Meta, ProfilePt, Pt, Route, Target } from '../types';
+import type { Layer, Meta, Overlay, ProfilePt, Pt, Route, Target } from '../types';
 
 export const MODE_COLOR: Record<string, string> = { traversability: '#d8b98e', science: '#e0a84a', balanced: '#74d6d2' };
-interface P { meta: Meta; layers: Layer[]; visible: Record<string, boolean>; targets: Target[]; routes: Route[]; selRoute: string | null;
+interface P { meta: Meta; layers: Layer[]; overlays: Overlay[]; visible: Record<string, boolean>; targets: Target[]; routes: Route[]; selRoute: string | null;
   selSeg: string | null; hover: ProfilePt | null; start: Pt; dest: Pt; picking: 'start' | 'dest' | null;
   onPick: (k: 'start' | 'dest', p: Pt) => void; onRoute: (id: string) => void; onSeg: (id: string) => void; onTarget: (t: Target) => void; onScale?: (i: number) => void; }
 
@@ -23,8 +23,8 @@ export default function MapView(p: P) {
     const m = L.map(el.current!, { crs: L.CRS.Simple, zoomSnap: 0.25, minZoom: 4, maxZoom: 13, attributionControl: true, zoomControl: true, maxBounds: bounds.pad(0.25) });
     m.fitBounds(bounds, { padding: [20, 20] });
     const fitZ = m.getZoom();
-    m.attributionControl.setPrefix('').addAttribution(p.meta.data_mode === 'NASA_PDS' ? 'Terrain: NASA MGS MOLA MEGDR via PDS Geosciences Node · simple-cylindrical display' : 'Terrain: SYNTHETIC TEST FIXTURE (not NASA data) · simple-cylindrical display');
-    ['grat', 'routes', 'targets', 'ends', 'hover'].forEach((k) => (g.current[k] = L.layerGroup().addTo(m)));
+    m.attributionControl.setPrefix('').addAttribution(p.meta.data_mode === 'NASA_PDS' ? 'Terrain: NASA MGS MOLA MEGDR via PDS Geosciences Node · simple-cylindrical display' : 'Terrain: SYNTHETIC TEST FIXTURE (not NASA data) · surface = computed shaded relief · simple-cylindrical display');
+    ['grat', 'paths', 'routes', 'targets', 'ends', 'hover'].forEach((k) => (g.current[k] = L.layerGroup().addTo(m)));
     // graticule every 0.1°
     for (let la = Math.ceil(b.lat_min * 10) / 10; la <= b.lat_max; la += 0.1) {
       L.polyline([[la, b.lon_min], [la, b.lon_max]], { color: '#ece6dc', weight: 1, opacity: 0.12, interactive: false }).addTo(g.current.grat);
@@ -61,10 +61,25 @@ export default function MapView(p: P) {
     p.layers.forEach((l, i) => {
       const on = !!p.visible[l.id];
       if (on && !imgs.current[l.id]) {
-        imgs.current[l.id] = L.imageOverlay(layerUrl(l.png), bounds, { className: l.smooth ? '' : 'pix', zIndex: 10 + i, opacity: l.id === 'terrain' ? 1 : 0.85 }).addTo(m);
+        imgs.current[l.id] = L.imageOverlay(layerUrl(l.png), bounds, { className: l.smooth ? '' : 'pix', zIndex: 10 + i, opacity: l.id === 'terrain' || l.id === 'surface' ? 1 : 0.85 }).addTo(m);
       } else if (!on && imgs.current[l.id]) { imgs.current[l.id].remove(); delete imgs.current[l.id]; }
     });
   }, [p.layers, p.visible]);
+
+  // Perseverance path slot: real local copy (dashed white) or a SYNTHETIC illustration (dotted violet, labelled)
+  useEffect(() => {
+    const gg = g.current.paths; if (!gg) return; gg.clearLayers();
+    p.overlays.forEach((o) => {
+      if (!p.visible[o.id]) return;
+      const ill = o.kind === 'illustrative';
+      o.lines.forEach((ln) => {
+        const ll = ln.map(([lo, la]) => [la, lo] as [number, number]);
+        L.polyline(ll, { color: ill ? '#a99bd6' : '#ffffff', weight: ill ? 2.5 : 2, opacity: 0.9, dashArray: ill ? '1 7' : '8 6', lineCap: 'round' }).addTo(gg)
+          .bindTooltip(ill ? 'Synthetic illustrative path — not rover data' : `${o.name} · local copy · display only`, { sticky: true });
+        if (ill && ll.length) L.marker(ll[Math.floor(ll.length / 2)], { icon: L.divIcon({ className: '', html: '<div class="pathlab">SYNTHETIC ILLUSTRATION · NOT ROVER DATA</div>', iconAnchor: [-8, 22] }), interactive: false }).addTo(gg);
+      });
+    });
+  }, [p.overlays, p.visible]);
 
   // targets
   useEffect(() => {

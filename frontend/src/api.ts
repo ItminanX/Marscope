@@ -17,13 +17,14 @@ async function snapshot() {
 async function fromSnapshot(path: string, body?: any): Promise<any> {
   const s = await snapshot();
   const sameEnds = (b: any) => !b || ((!b.start || (b.start.lat === s.default_start.lat && b.start.lon === s.default_start.lon)) &&
-                                      (!b.dest || (b.dest.lat === s.default_dest.lat && b.dest.lon === s.default_dest.lon)));
+                                      (!b.dest || (b.dest.lat === s.default_dest.lat && b.dest.lon === s.default_dest.lon)) &&
+                                      (!b.grid || b.grid === (s.default_grid || 'routing')));
   const u = new URL(path, 'http://x');
   const p = u.pathname;
   if (p === '/api/health') return { ok: true, data_mode: s.metadata.data_mode, offline: true };
   if (p in s.get) return s.get[p];
   if (p === '/api/routes/compare' || p === '/api/routes') {
-    if (!sameEnds(body)) throw new ApiError('Offline snapshot contains only the Demo Mission endpoints. Start the backend to plan custom routes.');
+    if (!sameEnds(body)) throw new ApiError('Offline snapshot contains only the Demo Mission routes (default endpoints, 1/512° routing grid). Start the backend to plan other routes.');
     const routes = s.get['/api/routes/compare'].routes;
     return p === '/api/routes' ? routes.find((r: any) => r.mode === (body?.mode || 'balanced')) : { routes };
   }

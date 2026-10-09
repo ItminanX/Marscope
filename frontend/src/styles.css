@@ -132,3 +132,19 @@ header { grid-column:1/-1; display:flex; align-items:center; gap:14px; padding:0
 
 @media (max-width:1700px) { .brand-sub { display:none } .statuschip { display:none } }
 @media (max-width:1450px) { .app { grid-template-columns:270px 1fr 370px } .journey button { width:88px } .journey i { left:9px } .hbtn { padding:7px 8px } }
+/* ---- v2 (offline build): layer notes, status legend, grids, path slot, globe, disclosure ---- */
+.lnote { font-size:11.5px; color:var(--off2); margin-top:5px; line-height:1.45 } .lnote.warn { color:#c9bdf0 }
+.sw0.dash { background:none!important; border-top:2px dotted #a99bd6; height:0; width:16px; vertical-align:3px }
+button.lad { width:100%; text-align:left; cursor:pointer } button.lad:hover { opacity:.8; color:var(--sand) }
+.statlist div { display:grid; grid-template-columns:118px 1fr; gap:8px; align-items:center; padding:3px 0; font-size:11.5px; color:var(--off2) }
+.gt { width:100%; border-collapse:collapse; font:11px var(--mono) } .gt th { text-align:left; font-weight:500; color:var(--off3); letter-spacing:.1em; padding:3px 2px; border-bottom:1px solid var(--line) }
+.gt td { padding:4px 2px; border-bottom:1px dashed var(--line); color:var(--off2) } .gt td:first-child { color:var(--off); text-transform:uppercase; letter-spacing:.08em }
+.gridsel { border:1px solid var(--line2) } .gridsel button { display:flex; width:100%; justify-content:space-between; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--line); font:500 11.5px var(--mono); letter-spacing:.06em; color:var(--off2); text-align:left }
+.gridsel button:last-child { border-bottom:0 } .gridsel button.on { background:rgba(116,214,210,.12); color:var(--off); box-shadow:inset 3px 0 0 var(--cyan) }
+.pathlab { font:600 9.5px var(--mono); letter-spacing:.1em; color:#1a1530; background:#c9bdf0; padding:2px 6px; white-space:nowrap }
+.globe { width:100%; max-width:360px } .g-limb { fill:#120f0d; stroke:var(--off3); stroke-width:1.2 } .g-grat { fill:none; stroke:rgba(236,230,220,.22); stroke-width:.8 }
+.g-box { fill:rgba(116,214,210,.25); stroke:var(--cyan); stroke-width:1.5 } .g-dot { fill:var(--cyan) } .g-t { fill:var(--off); font:500 10px var(--mono); letter-spacing:.1em } .g-t.mid { text-anchor:middle; fill:var(--sand) }
+.intro .disc { margin-top:26px; font:500 11px var(--mono); letter-spacing:.12em; color:var(--amber); max-width:900px; line-height:1.7 }
+.hbtn, .mode-badge, .statuschip { white-space:nowrap }
+@media (max-width:1700px) { header { gap:9px } .hbtn, .mode-badge { padding:6px 7px; letter-spacing:.06em; font-size:10.5px } .journey { margin-left:8px } }
+@media (max-width:1500px) { .mode-badge.offbuild { display:none } }

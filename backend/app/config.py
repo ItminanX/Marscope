@@ -45,6 +45,9 @@ MODES = {   # cell cost c = beta + alpha*T + gamma*(1-S);  edge cost = distance_
 # "native" keeps the original 1/128 deg grid + pure-Python A* for comparison. Finer grids add NO information.
 ROUTING_GRID_DEFAULT = "routing"
 GRID_CHOICES = ("routing", "native")
+# Perseverance path (only used if a local copy exists in data/raw/m20/). The property that holds the sol number is
+# NOT assumed: leave None until a person has opened the real file and found the right property name.
+PATH_SOL_PROPERTY = None
 SEGMENT_TARGET_M = 1500.0      # route is split into ~1.5 km segments for evidence
 STOP_RADIUS_M = 1200.0         # a target within this distance of the route counts as a candidate stop
 

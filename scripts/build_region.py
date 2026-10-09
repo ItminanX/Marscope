@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from app.config import RAW, FIXTURES, PROCESSED, TARGETS, REGION, MOLA_TOPO_TILE, MOLA_COUNT_TILE, TERRAIN, MODES, SCIENCE_SIGMA_M  # noqa
+from app.config import RAW, FIXTURES, PROCESSED, TARGETS, REGION, MOLA_TOPO_TILE, MOLA_COUNT_TILE, TERRAIN, MODES, SCIENCE_SIGMA_M, PATH_SOL_PROPERTY  # noqa
 from app.ingestion.pds3 import read_megdr, clip, DataError  # noqa
 from app.geospatial.terrain import slope_deg, local_relief_m, hillshade, haversine_m  # noqa
 from app.provenance.registry import mola_record, derived_record, grid_record, UNAVAILABLE  # noqa
@@ -151,10 +151,11 @@ def main():
     overlays = []
     real_path = RAW / "m20" / "M20_traverse.json"
     if real_path.exists():
-        rp = load_real_path(real_path, rc.radius_m, b)
+        rp = load_real_path(real_path, rc.radius_m, b, PATH_SOL_PROPERTY)
         overlays.append({"id": "perseverance_path", "kind": "real", "name": "Perseverance traverse (local copy)",
                          "lines": rp["lines"], "default": False,
-                         "check": {"coordinate_convention": rp["convention"], "in_region_share": rp["in_region_share"], "vertices": rp["vertices"]},
+                         "check": {"coordinate_convention": rp["convention"], "in_region_share": rp["in_region_share"], "vertices": rp["vertices"],
+                                   "sol_range": rp["sol_range"], "local_copy_date": time.strftime("%Y-%m-%d", time.localtime(real_path.stat().st_mtime))},
                          "provenance": {"id": "perseverance_path", "source_name": "Perseverance traverse — NASA Mars 2020 location map (local copy)",
                                         "mission": "Mars 2020 (NASA)", "instrument": "rover localization (NASA/JPL-Caltech)",
                                         "product": "M20_traverse.json", "source_url": "https://mars.nasa.gov/mmgis-maps/M20/Layers/json/M20_traverse.json",
@@ -175,7 +176,7 @@ def main():
                                         "mission": "none (synthetic)", "instrument": "none", "product": "schematic sine-wave polyline for interface testing",
                                         "source_url": "generated — backend/app/ingestion/traverse.py: illustrative_path()",
                                         "archive": "none", "spatial_reference": "lat/lon, inside the region bounds",
-                                        "coverage": "southern band of the map; deliberately away from the landing site",
+                                        "coverage": "northern band of the map; deliberately away from the landing site",
                                         "resolution": "60 vertices", "retrieval_date": time.strftime("%Y-%m-%d"),
                                         "processing_steps": ["deterministic sine wave between fixed points inside the map bounds"],
                                         "credit": "MARSCOPE (not NASA)", "notes": "Tests the map's path slot until a real local file (data/raw/m20/M20_traverse.json) is added.",

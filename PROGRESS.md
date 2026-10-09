@@ -117,7 +117,7 @@ React/Leaflet UI (CRS.Simple on the lat/lon grid). `scripts/build_snapshot.py` f
 - No local traverse/waypoint file. Added `backend/app/ingestion/traverse.py`: reads a future local
   `data/raw/m20/M20_traverse.json` as plain GeoJSON geometry (no property names assumed), checks the coordinate
   convention against Butler Landing (18.4447°N, 77.4508°E), reports in-region share. Until then the map offers an
-  optional **"Synthetic illustrative path — not rover data"** (sine wave in the south of the map, > 20 km from the
+  optional **"Synthetic illustrative path — not rover data"** (sine wave in the north of the map, > 15 km from the
   landing site, no metrics). API: `GET /api/overlays`.
 
 ## Phase 5 — CRISM (SKIPPED — source absent)
@@ -132,3 +132,19 @@ React/Leaflet UI (CRS.Simple on the lat/lon grid). `scripts/build_snapshot.py` f
   the region location (Phase 8 build). `scripts/check_local_data.py` lists every expected source file and whether it
   is present (all absent in this build).
 - **Tests:** 45 passed.
+
+---
+
+## Phase 8 — Docs, demo, tests (DONE)
+- UI: 7-word status legend (VERIFIED, DERIVED, APPROXIMATE, ASSUMPTION, SYNTHETIC, CONCEPTUAL, DATA_UNAVAILABLE),
+  SURFACE explanation, path slot with warning, grid selector + timings, grids/slope table, CREDITS panel, schematic
+  GLOBAL globe, local-file inventory in SOURCES, OFFLINE BUILD chip, pre-event disclosure (intro, Explore, Credits,
+  brief footer, LIMITATIONS).
+- Docs rewritten: DATA, ARCHITECTURE, SCIENTIFIC_METHOD, ROUTING, PRESCREENING_ALIGNMENT, DEMO, SCREENING_DEMO, README;
+  new CHANGES.md (per-phase changes, before/after numbers, limits, claims table).
+- Snapshot regenerated (0.32 MB) and copied to `dist/demo`. UI rebuilt offline with `frontend/tools/offline-build.mjs`
+  (esbuild 0.28 + local React 19.2.8; Leaflet 1.9.4 + font/Leaflet CSS recovered from the previous bundle).
+- Browser check (headless Chromium, local servers only): Demo Mission 8 steps, surface + path layers, Credits, Globe,
+  Limitations — no page errors, **no request to any non-local address**. In static no-backend mode the only console
+  error is the expected 404 of `/api/metadata` that triggers the snapshot fallback.
+- **Tests:** 46 passed.
