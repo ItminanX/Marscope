@@ -148,3 +148,43 @@ React/Leaflet UI (CRS.Simple on the lat/lon grid). `scripts/build_snapshot.py` f
   Limitations — no page errors, **no request to any non-local address**. In static no-backend mode the only console
   error is the expected 404 of `/api/metadata` that triggers the snapshot fallback.
 - **Tests:** 46 passed.
+
+---
+
+## Phase 9 — GitHub package and beginner guide (DONE)
+- `.gitignore` (raw data + big rasters, `.env`, caches, virtual environments, node_modules, OS files);
+  `data/raw/README.md` explains where real files go.
+- Size check: 166 tracked files, ~7.6 MB without `.git`. Largest file 0.54 MB (`surface.png`). Nothing near 50 MB.
+- Secrets/personal-data scan: no keys, tokens, passwords, emails, personal names or local machine paths in tracked
+  files. Commit author of the prepared commits: `Claude <noreply@anthropic.com>`.
+- `LICENSE` (MIT for MARSCOPE code + data/third-party notes), README rewritten (disclosure, run commands, offline
+  scripts, sources/credits, status system, "network downloads intentionally disabled").
+- `GITHUB_GUIDE.txt` (Windows + Mac notes, browser sign-in / token / GitHub Desktop, error table, visibility,
+  optional Pages). `.github/workflows/pages.yml` publishes `frontend/dist` only when run by hand.
+- Static hosting checked under a sub-folder URL (like `https://NAME.github.io/marscope/`): app, fonts and snapshot load;
+  the only 404 is the expected `/api/metadata` probe that switches the app to the snapshot.
+
+## Final offline integrity check (DONE)
+- Searched code and docs for "CTX", "actual path", "NASA data", "VERIFIED", "real-time", "mineral detection",
+  "accurate substitute", "near-exact", "safest". Every use is an intended-source reference, a placeholder, a
+  negation ("not NASA data", "no mineral detections", "no real-time conditions"), or a code path that only applies
+  when a real local file exists (MOLA → VERIFIED, local traverse JSON → VERIFIED display).
+- Change made by this check: landing site and crater centre were VERIFIED as cited values with no local source file →
+  now **APPROXIMATE**. **Nothing in this build is VERIFIED.**
+- UI distinguishes VERIFIED / DERIVED / APPROXIMATE / ASSUMPTION / SYNTHETIC / CONCEPTUAL / DATA_UNAVAILABLE (rail legend,
+  chips on every layer/grid/target/overlay, LIMITATIONS vocabulary table).
+- **OFFLINE MODE: no network requests were made.** No downloads, no package-index installs (Python packages and
+  pytest were used from what was already installed; Node tools from a local folder), no browser access to external
+  sites. Headless-browser checks were run against `localhost` only, and the check script flagged any non-local request
+  (none happened).
+
+## Unverified background assumptions (model knowledge, not from local files)
+- GitHub instructions in GITHUB_GUIDE.txt (menu names, token steps, Pages pricing for private repos, action versions
+  `checkout@v4`, `configure-pages@v5`, `upload-pages-artifact@v3`, `deploy-pages@v4`) come from general knowledge and may
+  have changed.
+- Licence names in the Credits panel for React (MIT) and the Python libraries come from general knowledge; Leaflet's
+  BSD-2 notice is in its bundled header; the font OFL licence files are in the prescreening package.
+- Instrument descriptions repeated in docs (e.g. "CTX DEM 20 m", "orthomosaic 5 m") are copied from the master prompt's
+  source list, not measured.
+
+## Status: COMPLETE. Next (by hand, needs internet): fetch real MOLA, then CTX/traverse/CRISM/MEDA as listed in docs/DATA.md.

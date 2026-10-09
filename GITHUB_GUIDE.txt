@@ -1,0 +1,224 @@
+MARSCOPE - HOW TO PUT THIS PROJECT ON GITHUB (beginner guide)
+================================================================
+
+Written for Windows. Mac notes are marked [Mac].
+Each step ends with "YOU SHOULD SEE:" so you know it worked.
+
+Words used in this guide:
+- Git = a program on your computer that saves versions of your files.
+- GitHub = a website that keeps a copy of your Git project online.
+- Repository ("repo") = one project folder that Git tracks.
+- Terminal = a window where you type commands.
+- Commit = one saved version, with a short message.
+- Push = send your commits from your computer to GitHub.
+
+Good to know before you start:
+- The project folder is "marscope" (from marscope-v2.zip). It ALREADY has a Git history
+  inside a hidden folder called ".git". The old commits show the author "Claude" because the
+  assistant made them. Your new commits will show YOUR name.
+- The project is small (about 8 MB). The biggest file is about 0.6 MB. GitHub blocks files
+  over 100 MB, so you are safe.
+- There are no passwords, keys or personal data in the project (checked).
+
+
+STEP 1 - Install Git
+--------------------
+Windows:
+ 1. Go to https://git-scm.com and click "Download for Windows".
+ 2. Open the downloaded file. Click "Next" on every page (the default options are fine).
+    Click "Install", then "Finish".
+[Mac]:
+ 1. Open the "Terminal" app (press Cmd + Space, type Terminal, press Enter).
+ 2. Type:  git --version   and press Enter. If a window asks to install
+    "command line developer tools", click "Install" and wait.
+
+Check it (Windows: open the Start menu, type "Git Bash", open it):
+    git --version
+YOU SHOULD SEE: a line like  git version 2.xx.x
+
+
+STEP 2 - Open a terminal inside the project folder
+--------------------------------------------------
+Windows:
+ 1. Unzip marscope-v2.zip (right-click -> "Extract All...").
+ 2. Open the "marscope" folder in File Explorer (you see README.md, backend, frontend ...).
+ 3. Right-click on an empty white area -> "Open Git Bash here"
+    (on Windows 11: "Show more options" -> "Open Git Bash here").
+[Mac]: In Terminal type  cd   (with a space), drag the marscope folder into the window, press Enter.
+
+Check it:
+    ls
+YOU SHOULD SEE: README.md  backend  frontend  docs  scripts  ... in the list.
+
+
+STEP 3 - Tell Git your name and email (one time only)
+-----------------------------------------------------
+    git config --global user.name "Your Name"
+    git config --global user.email "you@example.com"
+Use the same email as your GitHub account. If you do not want your real email to be public,
+use GitHub's private email: on github.com click your photo -> Settings -> Emails -> tick
+"Keep my email addresses private". GitHub then shows an address that ends in
+@users.noreply.github.com - use that one.
+
+Check it:
+    git config --global user.name
+YOU SHOULD SEE: your name.
+
+
+STEP 4 - Create a new EMPTY repository on github.com
+----------------------------------------------------
+ 1. Sign in at https://github.com (create a free account if you do not have one).
+ 2. Click the "+" at the top right -> "New repository".
+ 3. Repository name: marscope
+ 4. Choose "Public" or "Private" (you can change it later, see Step 10).
+ 5. IMPORTANT - leave these EMPTY:
+      - do NOT tick "Add a README file"
+      - ".gitignore template": None
+      - "Choose a license": None
+    (The project already has its own README, .gitignore and LICENSE. If you add them here,
+    the first push will be rejected.)
+ 6. Click "Create repository".
+YOU SHOULD SEE: a page called "Quick setup" with an address like
+    https://github.com/YOUR-NAME/marscope.git
+Copy this address (there is a copy button next to it). Use the HTTPS address, not SSH.
+
+
+STEP 5 - Send the project to GitHub (copy these commands one by one)
+--------------------------------------------------------------------
+    git init
+YOU SHOULD SEE: "Reinitialized existing Git repository ..." (this is fine and safe).
+
+    git add .
+YOU SHOULD SEE: nothing, or a few warnings about line endings (LF/CRLF). Both are fine.
+
+    git commit -m "MARSCOPE v2 offline build"
+YOU SHOULD SEE: either a summary like "1 file changed", or
+"nothing to commit, working tree clean". Both are fine: it means everything is saved.
+
+    git branch -M main
+YOU SHOULD SEE: nothing. (This makes sure the main branch is called "main".)
+
+    git remote add origin https://github.com/YOUR-NAME/marscope.git
+(Paste YOUR address from Step 4.)
+YOU SHOULD SEE: nothing.
+
+    git push -u origin main
+YOU SHOULD SEE (after signing in, Step 6): lines like
+    Enumerating objects ... Writing objects: 100% ...
+    branch 'main' set up to track 'origin/main'.
+
+
+STEP 6 - Signing in the first time
+----------------------------------
+Option A - browser sign-in (easiest, normal on Windows):
+ A window "Connect to GitHub" opens -> click "Sign in with your browser" -> your browser opens
+ -> click "Authorize" -> go back to Git Bash. The push continues by itself.
+
+Option B - personal access token (if Git asks for "Username" and "Password", common on Mac):
+ Your normal GitHub password does NOT work here. Make a token:
+ 1. github.com -> your photo (top right) -> Settings -> Developer settings (bottom left)
+    -> Personal access tokens -> Fine-grained tokens -> "Generate new token".
+ 2. Token name: marscope. Expiration: 30 or 90 days.
+ 3. Repository access: "Only select repositories" -> choose marscope.
+ 4. Permissions -> Repository permissions -> "Contents": Read and write.
+ 5. Click "Generate token". Copy it now (it starts with github_pat_). You cannot see it again.
+ 6. In the terminal: Username = your GitHub user name. Password = paste the token.
+    (Nothing appears on screen while you paste. That is normal. Press Enter.)
+ Keep the token secret. Never put it in a file in the project.
+
+Option C - GitHub Desktop (if you do not like the command line):
+ 1. Download from https://desktop.github.com and install. Sign in with your GitHub account.
+ 2. File -> "Add local repository..." -> choose the marscope folder -> "Add repository".
+ 3. Click "Publish repository" (top). Choose the name marscope. Untick
+    "Keep this code private" if you want it public. Click "Publish repository".
+ YOU SHOULD SEE: the button changes to "Fetch origin". Your project is on GitHub.
+ (If you used Steps 4-5 already, do not also use "Publish" - just use "Push origin".)
+
+
+STEP 7 - Check that it worked
+-----------------------------
+Open https://github.com/YOUR-NAME/marscope in your browser and refresh the page.
+YOU SHOULD SEE:
+ - folders: .github, backend, data, docs, frontend, scripts
+ - files: README.md, LICENSE, CHANGES.md, PROGRESS.md, GITHUB_GUIDE.txt, run.py ...
+ - below the file list: the README with the title "MARSCOPE - Mission-Aware Route Intelligence
+   for Mars" and the line "Pre-event concept prototype, not work produced during the official
+   hackathon (Nov 14-15, 2026)".
+ - a "commits" link that shows the earlier commits (Baseline, Phase 1, ...).
+
+
+STEP 8 - Save later changes (every time you change something)
+-------------------------------------------------------------
+    git status
+YOU SHOULD SEE: the files you changed (in red).
+
+    git add .
+    git commit -m "Short description of what you changed"
+YOU SHOULD SEE: "x files changed".
+
+    git push
+YOU SHOULD SEE: "Writing objects: 100%". Refresh GitHub: your change is there.
+
+
+STEP 9 - Common errors and fixes
+--------------------------------
+ERROR MESSAGE                                      | WHAT TO DO
+---------------------------------------------------|--------------------------------------------------
+'git' is not recognized as a command               | Git is not installed, or the terminal was open
+                                                   | before you installed it. Close and open Git Bash.
+remote origin already exists                       | git remote set-url origin https://github.com/YOUR-NAME/marscope.git
+Authentication failed / Support for password       | Use browser sign-in or a token (Step 6), not your
+authentication was removed                         | GitHub password. Windows: Control Panel ->
+                                                   | Credential Manager -> Windows Credentials ->
+                                                   | remove "git:https://github.com", then push again.
+Permission denied (publickey)                      | You used the SSH address. Use the HTTPS address:
+                                                   | git remote set-url origin https://github.com/YOUR-NAME/marscope.git
+failed to push some refs ... rejected (fetch first)| The GitHub repo is not empty (README/licence was
+                                                   | ticked). Easiest: delete that repo on GitHub
+                                                   | (Settings -> Delete) and do Step 4 again, empty.
+                                                   | Or: git pull origin main --allow-unrelated-histories
+                                                   | then git push.
+src refspec main does not match any                | No commit yet. Run git add . and git commit -m "..."
+                                                   | first, then git branch -M main, then push.
+File is too large / exceeds GitHub's file size     | You added a big file (for example a MOLA .img or a
+limit of 100 MB                                    | .tif). Big data belongs in data/raw/ (ignored).
+                                                   | git rm --cached path/to/bigfile
+                                                   | git commit -m "Remove big file"  then push.
+                                                   | If it is inside an older commit, ask for help.
+nothing to commit, working tree clean              | Not an error. Everything is already saved.
+LF will be replaced by CRLF (warning)              | Not an error. You can ignore it.
+
+
+STEP 10 - Public or private
+---------------------------
+Change it any time: on the repo page click "Settings" -> "General" -> scroll down to
+"Danger Zone" -> "Change repository visibility" -> choose Public or Private -> confirm.
+Reminder: never upload passwords, tokens, API keys or ".env" files. This project has none,
+and the .gitignore file blocks ".env" files. Judges can only see a public repository
+(or a private one you invite them to).
+
+
+STEP 11 (optional) - Show the demo on GitHub Pages
+--------------------------------------------------
+The demo can run as plain static files (it uses the bundled Demo Mission snapshot, no server).
+The project already contains the file .github/workflows/pages.yml that publishes frontend/dist.
+ 1. On the repo page: "Settings" -> "Pages" (left menu).
+ 2. Under "Build and deployment" -> "Source", choose "GitHub Actions".
+ 3. Click the "Actions" tab at the top -> click "Deploy demo to GitHub Pages" on the left
+    -> click "Run workflow" -> green "Run workflow" button.
+ 4. Wait 1-2 minutes until the run shows a green check mark.
+YOU SHOULD SEE: under Settings -> Pages, the text "Your site is live at
+    https://YOUR-NAME.github.io/marscope/"
+ Open it: the MARSCOPE intro appears, then the app with the badges OFFLINE SNAPSHOT and
+ SYNTHETIC TEST TERRAIN. The Demo Mission works. Custom routes need the Python backend
+ (python run.py on your computer).
+Notes: as far as I know, GitHub Pages is free for PUBLIC repositories; private repositories
+need a paid plan. If GitHub shows a warning about old action versions in pages.yml, change the
+numbers after "@" to the newest version that GitHub suggests.
+
+
+QUICK SUMMARY (when you already know the steps)
+-----------------------------------------------
+    git add .
+    git commit -m "message"
+    git push

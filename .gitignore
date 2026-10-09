@@ -1,6 +1,35 @@
-node_modules/
+# --- raw source data and big rasters (rebuild with the scripts; see docs/DATA.md) ---
+data/raw/*
+!data/raw/README.md
+*.tif
+*.tiff
+*.img
+!data/fixtures/*.img
+*.IMG
+*.zip
+
+# --- Python caches and virtual environments ---
 __pycache__/
+*.py[cod]
 .pytest_cache/
-data/raw/*.img
-data/raw/*.lbl
+.venv/
+venv/
+env/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Node / frontend build leftovers (frontend/dist is shipped on purpose) ---
+node_modules/
+frontend/.vite/
+*.log
+npm-debug.log*
+
+# --- secrets and local settings ---
 .env
+*.pem
+*.key
+
+# --- operating-system files ---
+.DS_Store
+Thumbs.db
+desktop.ini

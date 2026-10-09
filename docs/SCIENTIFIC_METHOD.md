@@ -58,7 +58,7 @@ Shaded relief (hillshade, az 315°, alt 45°, 3× vertical exaggeration) of the 
 elevation shown as light and shadow — **not an orbital photograph, not CTX or HiRISE, and it adds no new evidence.**
 
 ## Targets
-- Landing site and crater centre: cited coordinates (VERIFIED as cited values).
+- Landing site and crater centre: published coordinates cited in the targets file. No local source file → **APPROXIMATE** (not VERIFIED) in this build.
 - **Western delta front: APPROXIMATE, not refined offline.** The synthetic terrain carries no evidence about the real
   delta; the fixture's fan bump is generated, so using it would be circular. QGIS check steps: docs/DATA.md.
 - West rim crest: highest point along an azimuth — DERIVED on real MOLA, SYNTHETIC here.

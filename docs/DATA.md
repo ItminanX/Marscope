@@ -13,7 +13,7 @@
 | Slope, relief, cost T | Computed from the grids above | **SYNTHETIC** | **DERIVED** |
 | SURFACE: shaded relief | Hillshade of the 1/1024° elevation (az 315°, alt 45°, 3× exaggeration). Not imagery. | **SYNTHETIC** | **DERIVED** (still not imagery) |
 | Shot-count coverage | Synthetic counts (Poisson + a gap every 7th column) | **SYNTHETIC** | MOLA `megc44n045hb` → **VERIFIED** |
-| Landing site, crater centre | Coordinates cited in `data/targets/jezero_targets.json` | **VERIFIED** (cited values; not re-checked offline) | unchanged |
+| Landing site, crater centre | Published coordinates cited in `data/targets/jezero_targets.json` (no local source file) | **APPROXIMATE** (cited, not re-checked offline) | stays APPROXIMATE unless checked against a local source file |
 | Western delta front | Placed point, not moved offline (see below) | **APPROXIMATE** | still APPROXIMATE until checked in QGIS |
 | West rim crest | Highest point along an azimuth on the terrain grid | **SYNTHETIC** | **DERIVED** |
 | Perseverance path | No local file → optional "Synthetic illustrative path — not rover data" | **SYNTHETIC** | local `M20_traverse.json` → **VERIFIED** (display only) |

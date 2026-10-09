@@ -9,7 +9,7 @@ every terrain-based number below is **SYNTHETIC** — it shows how the method be
 | 0 Orient | Read all code/docs, ran tests (14 passed, 3 errors: FastAPI not installed), wrote PROGRESS.md, `git init` + baseline commit. Found: no real MOLA file is present; terrain = synthetic fixture (verified byte-identical rebuild from `make_fixture.py`). |
 | 1 Terrain | New 1/512° routing grid and 1/1024° analysis grid (cubic interpolation, documented, built at start-up, not shipped). Routes on 1/512° with exact Dijkstra; native 1/128° + A* kept selectable. Slope read along routes on 1/1024°. Slope statistics per grid. New Starlette-only server (`app/lite.py`) sharing handlers with FastAPI; in-process ASGI test client. |
 | 2 Surface | New SURFACE layer: shaded relief of the elevation grid (1288 × 1088 px, 0.54 MB, exact grid bounds). Labelled "not imagery". |
-| 3 Delta front | Kept APPROXIMATE and unmoved; `offline_review` note; QGIS check steps in docs/DATA.md. |
+| 3 Delta front | Kept APPROXIMATE and unmoved; `offline_review` note; QGIS check steps in docs/DATA.md. Landing site and crater centre changed VERIFIED → APPROXIMATE (cited values, no local source file). |
 | 4 Path | Perseverance path slot: local GeoJSON loader with Butler Landing convention check and in-region share (unit-tested on small fixtures); without a file, an optional "Synthetic illustrative path — not rover data". `GET /api/overlays`. |
 | 5 CRISM | Skipped — files absent. DATA_UNAVAILABLE; no classes invented. |
 | 6 MEDA | Skipped — no files. CONCEPTUAL; brief says no measured conditions. |
@@ -40,7 +40,7 @@ every terrain-based number below is **SYNTHETIC** — it shows how the method be
 - UI rebuilt offline with esbuild + React 19 (the project's package.json targets React 18); no TypeScript check against
   real library types was possible offline (checked against loose local stubs). `npm run build` on a laptop re-checks it.
 - Timings were measured on a cloud test machine; run `python scripts/benchmark_routes.py` on your laptop.
-- The target coordinates for the landing site and crater centre were not re-checked offline (they come with citations).
+- The target coordinates for the landing site and crater centre were not re-checked offline (they come with citations), so they are APPROXIMATE. Nothing in this build is VERIFIED.
 
 ## Claims table for judges
 | Claim | Source | Status | What is NOT claimed |
@@ -52,7 +52,7 @@ every terrain-based number below is **SYNTHETIC** — it shows how the method be
 | Slope statistics per grid spacing | computed on the grids | SYNTHETIC | Real Martian slopes |
 | SURFACE layer | hillshade of the elevation grid | SYNTHETIC here (DERIVED with real MOLA) | Orbital imagery, CTX or HiRISE |
 | Delta-front target position | placement from published descriptions | APPROXIMATE | A surveyed or refined position |
-| Landing site / crater centre coordinates | cited NASA / IAU values | VERIFIED (cited) | Re-verification in this offline session |
+| Landing site / crater centre coordinates | cited NASA / IAU values (no local source file) | APPROXIMATE | Re-verification in this offline session; survey precision |
 | Violet dotted line | generated sine wave | SYNTHETIC | The Perseverance path, any rover metric |
 | CRISM / minerals | — | DATA_UNAVAILABLE | Any mineral detection or class |
 | Weather / conditions | — | CONCEPTUAL | Any measured or real-time condition |
