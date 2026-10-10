@@ -24,6 +24,11 @@ frontend/.vite/
 *.log
 npm-debug.log*
 
+# --- AI assistant artifacts & local logs ---
+.claude/
+*.session
+*.chat
+
 # --- secrets and local settings ---
 .env
 *.pem

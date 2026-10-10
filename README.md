@@ -78,7 +78,6 @@ scripts/            make_fixture · build_region · build_snapshot · check_loca
 data/               fixtures/ (synthetic) · processed/jezero/ · targets/ · raw/ (empty; for real files, git-ignored)
 frontend/           React + TypeScript + Leaflet; dist/ = built app; tools/ = offline build used for this version
 docs/               DATA · ARCHITECTURE · ROUTING · SCIENTIFIC_METHOD · DEMO · SCREENING_DEMO · PRESCREENING_ALIGNMENT
-PROGRESS.md · CHANGES.md · GITHUB_GUIDE.txt
 ```
 
 ### Develop the UI (optional, Node 18+, needs internet once for npm)

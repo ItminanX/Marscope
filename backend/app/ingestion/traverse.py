@@ -16,7 +16,7 @@ import numpy as np
 from .pds3 import DataError
 from ..geospatial.terrain import haversine_m
 
-BUTLER_REF = (18.4447, 77.4508)   # Octavia E. Butler Landing (reference point from the master prompt / targets file)
+BUTLER_REF = (18.4447, 77.4508)   # Octavia E. Butler Landing (reference point from targets file)
 
 
 def _lines_from_geojson(doc) -> list[list[tuple[float, float]]]:
